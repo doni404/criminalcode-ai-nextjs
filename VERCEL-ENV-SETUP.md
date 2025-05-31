@@ -17,8 +17,8 @@
 | Variable Name | Value | Environment |
 |---------------|-------|-------------|
 | `OPENAI_API_KEY` | `your_actual_openai_key` | **Production, Preview** (NOT Development) |
-| `QDRANT_URL` | `https://6464c6b9-f09e-4bd0-b38b-e9159c6fd1f3.us-east-1-0.aws.cloud.qdrant.io:6333` | **Production, Preview, Development** |
-| `QDRANT_API_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.086XrmuBPqw8Fi1ty6IoFE8IlvZM9J5VNuOyJcEgqG8` | **Production, Preview** (NOT Development) |
+| `QDRANT_URL` | `https://your-cluster-id.us-east-1-0.aws.cloud.qdrant.io:6333` | **Production, Preview, Development** |
+| `QDRANT_API_KEY` | `your_qdrant_cloud_api_key` | **Production, Preview** (NOT Development) |
 | `NEXT_PUBLIC_APP_URL` | `https://your-vercel-url.vercel.app` | **Production, Preview, Development** |
 
 ### Step 3: For Each Variable:
@@ -57,11 +57,9 @@ This is actually **better security** - your API keys stay out of development bra
 - Get from: [OpenAI Platform](https://platform.openai.com/api-keys)
 - Format: `sk-proj-...` (starts with sk-proj)
 
-### Qdrant Cloud (Already Known)
-```
-URL: https://6464c6b9-f09e-4bd0-b38b-e9159c6fd1f3.us-east-1-0.aws.cloud.qdrant.io:6333
-API Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.086XrmuBPqw8Fi1ty6IoFE8IlvZM9J5VNuOyJcEgqG8
-```
+### Qdrant Cloud
+- **URL:** Your cluster URL from Qdrant Cloud dashboard
+- **API Key:** Your API token from Qdrant Cloud dashboard
 
 ### App URL (After First Deploy)
 ```
