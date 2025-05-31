@@ -14,6 +14,7 @@ export default function ChatInterface() {
   const [articleClickNotification, setArticleClickNotification] = useState('');
   const [articlePreview, setArticlePreview] = useState(null);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   // Get enabled PDFs count for display
   const getEnabledPDFsCount = () => {
@@ -151,14 +152,64 @@ Please describe the criminal case or situation you'd like me to analyze.`,
   }, [analysisMode]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Use requestAnimationFrame for smooth scrolling and better control
+    requestAnimationFrame(() => {
+      if (messagesContainerRef.current && messagesEndRef.current) {
+        // Get the container and target element
+        const container = messagesContainerRef.current;
+        const target = messagesEndRef.current;
+        
+        // Calculate the scroll position
+        const containerHeight = container.clientHeight;
+        const scrollHeight = container.scrollHeight;
+        const targetOffset = target.offsetTop;
+        
+        // Scroll to the bottom smoothly
+        container.scrollTo({
+          top: scrollHeight - containerHeight,
+          behavior: 'smooth'
+        });
+      }
+    });
   };
 
   useEffect(() => {
+    // Only scroll when component is mounted and messages exist
     if (isMounted && messages.length > 0) {
-      scrollToBottom();
+      // Add a delay to ensure DOM is fully rendered and prevent conflicts
+      const timeoutId = setTimeout(() => {
+        // Only scroll if the container is visible (not hidden by tab switching)
+        if (messagesContainerRef.current) {
+          const container = messagesContainerRef.current;
+          const isVisible = container.offsetParent !== null;
+          
+          if (isVisible) {
+            scrollToBottom();
+          }
+        }
+      }, 150);
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [messages, isMounted]);
+  
+  // Additional effect to handle tab visibility and scroll restoration
+  useEffect(() => {
+    if (isMounted && messagesContainerRef.current) {
+      // Scroll to bottom when component becomes visible (e.g., tab switch)
+      const container = messagesContainerRef.current;
+      
+      // Check if container is visible and has content
+      if (container.offsetParent !== null && messages.length > 0) {
+        // Add a small delay to ensure smooth transition
+        const timeoutId = setTimeout(() => {
+          scrollToBottom();
+        }, 100);
+        
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [isMounted, messages.length]); // Depend on messages.length instead of messages array
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -568,8 +619,16 @@ Please describe the criminal case or situation you'd like me to analyze.`,
         </div>
       </div>
 
-      {/* Compact Messages Container */}
-      <div className="h-80 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-900">
+      {/* Improved Messages Container with better scroll behavior */}
+      <div 
+        ref={messagesContainerRef}
+        className="h-80 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-900"
+        style={{
+          scrollBehavior: 'smooth',
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#cbd5e1 #f1f5f9',
+        }}
+      >
         {messages.map((message) => (
           <div
             key={message.id}
