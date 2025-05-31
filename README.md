@@ -1,4 +1,17 @@
-# Criminal Code AI - Advanced Legal Analysis System
+# Criminal Code AI - Indonesian Penal Code Legal Analysis
+
+🤖 **Advanced AI-powered legal analysis system for Indonesian Criminal Code (KUHP)**
+
+<!-- Deployment trigger: 2025-05-31 -->
+
+## 🌟 Features
+
+### 🧠 **Advanced AI Legal Analysis**
+- **Interactive Legal Consultation** - Dynamic questioning system that adapts based on case complexity
+- **Multi-Mode Analysis** - Simple chat, interactive analysis, 8-item analysis, and comprehensive flowchart modes  
+- **Criminal Code Article Search** - Intelligent search through Indonesian Penal Code articles
+- **Case Law Integration** - Analysis incorporating relevant Indonesian case law
+- **Penalty Assessment** - Automated calculation of potential sentences and legal consequences
 
 An intelligent Next.js application that provides comprehensive criminal law analysis using AI and vector databases. Features interactive legal consultation, PDF document processing, and advanced case analysis frameworks.
 
@@ -142,7 +155,6 @@ criminalcode-ai-nextjs/
 │   ├── app/                     # Next.js App Router
 │   │   ├── api/
 │   │   │   ├── chat/           # Simple chat API
-│   │   │   ├── legal/
 │   │   │   │   ├── analyze/    # Interactive analysis API
 │   │   │   │   ├── article-content/ # Article content fetching
 │   │   │   │   └── pdfs/       # PDF management API
