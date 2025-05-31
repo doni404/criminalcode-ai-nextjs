@@ -2,11 +2,25 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 
 class QdrantService {
   constructor() {
-    this.client = new QdrantClient({
-      host: process.env.QDRANT_HOST || 'localhost',
-      port: process.env.QDRANT_PORT || 6333,
-      apiKey: process.env.QDRANT_API_KEY || undefined
-    });
+    // Support both local development and cloud deployment
+    const qdrantUrl = process.env.QDRANT_URL;
+    
+    if (qdrantUrl) {
+      // Cloud configuration - use full URL
+      console.log(`🌐 Connecting to Qdrant Cloud: ${qdrantUrl}`);
+      this.client = new QdrantClient({
+        url: qdrantUrl,
+        apiKey: process.env.QDRANT_API_KEY
+      });
+    } else {
+      // Local development configuration
+      console.log(`🏠 Connecting to local Qdrant: ${process.env.QDRANT_HOST || 'localhost'}:${process.env.QDRANT_PORT || 6333}`);
+      this.client = new QdrantClient({
+        host: process.env.QDRANT_HOST || 'localhost',
+        port: process.env.QDRANT_PORT || 6333,
+        apiKey: process.env.QDRANT_API_KEY || undefined
+      });
+    }
     
     this.collections = {
       CRIME_NAME_MASTER: 'crime_name_master',
