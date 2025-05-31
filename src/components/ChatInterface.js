@@ -95,7 +95,7 @@ Please describe the criminal case or situation you'd like me to analyze.`
         ...prev.slice(1)
       ]);
     }
-  }, [enabledPDFsCount, analysisMode, isMounted]);
+  }, [enabledPDFsCount, analysisMode, isMounted, messages]);
 
   // Initialize on client side only to prevent hydration issues
   useEffect(() => {
