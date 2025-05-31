@@ -2,31 +2,44 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 
 class QdrantService {
   constructor() {
-    // Support both local development and cloud deployment
-    const qdrantUrl = process.env.QDRANT_URL;
-    
-    if (qdrantUrl) {
-      // Cloud configuration - use full URL
-      console.log(`🌐 Connecting to Qdrant Cloud: ${qdrantUrl}`);
-      this.client = new QdrantClient({
-        url: qdrantUrl,
-        apiKey: process.env.QDRANT_API_KEY
-      });
-    } else {
-      // Local development configuration
-      console.log(`🏠 Connecting to local Qdrant: ${process.env.QDRANT_HOST || 'localhost'}:${process.env.QDRANT_PORT || 6333}`);
-      this.client = new QdrantClient({
-        host: process.env.QDRANT_HOST || 'localhost',
-        port: process.env.QDRANT_PORT || 6333,
-        apiKey: process.env.QDRANT_API_KEY || undefined
-      });
-    }
-    
+    // Don't instantiate client in constructor to prevent build-time errors
     this.collections = {
       CRIME_NAME_MASTER: 'crime_name_master',
       CASE_LAW_MASTER: 'case_law_master',
       CRIMINAL_CODE_ARTICLES: 'criminal_code_articles'
     };
+  }
+
+  // Lazy initialization of Qdrant client
+  get client() {
+    if (!this._client) {
+      this._client = this.createClient();
+    }
+    return this._client;
+  }
+
+  createClient() {
+    // Support both local development and cloud deployment
+    const qdrantUrl = process.env.QDRANT_URL;
+    
+    if (qdrantUrl && (qdrantUrl.startsWith('http://') || qdrantUrl.startsWith('https://'))) {
+      // Cloud configuration - use full URL with proper protocol
+      console.log(`🌐 Connecting to Qdrant Cloud: ${qdrantUrl}`);
+      return new QdrantClient({
+        url: qdrantUrl,
+        apiKey: process.env.QDRANT_API_KEY
+      });
+    } else {
+      // Local development configuration
+      const host = process.env.QDRANT_HOST || 'localhost';
+      const port = parseInt(process.env.QDRANT_PORT || '6333');
+      console.log(`🏠 Connecting to local Qdrant: ${host}:${port}`);
+      return new QdrantClient({
+        host: host,
+        port: port,
+        apiKey: process.env.QDRANT_API_KEY || undefined
+      });
+    }
   }
 
   async initializeCollections() {
