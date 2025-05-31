@@ -34,6 +34,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# PDF.js library files (downloaded from CDN)
+/public/pdfjs/
+
 # PDF uploads (user documents)
 /public/uploads/
 *.pdf
