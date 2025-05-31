@@ -4,11 +4,6 @@
 /node_modules
 /.pnp
 .pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
 # testing
 /coverage
@@ -28,7 +23,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
 .env*
@@ -40,62 +34,20 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# PDF.js library files (downloaded from CDN)
-/public/pdfjs/
-
 # PDF uploads (user documents)
 /public/uploads/
 *.pdf
 
-# Temporary files
-*.tmp
-*.temp
-/temp/
-/tmp/
-
 # Log files
 *.log
-logs/
 
-# IDE and Editor files
+# IDE files
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
-.sublime-*
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
+# OS files
 Thumbs.db
 
-# Test files (if any)
+# Test files
 test-*.js
-test-*.ts
-
-# Backup files
-*.bak
-*.backup
-
-# Local development files
-.env.local.backup
-.env.development.local.backup
-
-# Zip files
-*.zip
-*.tar.gz
-*.rar
-
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Cache directories
-.cache/
-.parcel-cache/
+test-*.mjs
