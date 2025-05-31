@@ -9,12 +9,12 @@ let qdrantService;
 async function loadDependencies() {
   try {
     if (!LegalDocumentProcessor) {
-      const module = await import('../../../lib/legal/documentProcessor.js');
-      LegalDocumentProcessor = module.default;
+      const documentModule = await import('../../../lib/legal/documentProcessor.js');
+      LegalDocumentProcessor = documentModule.default;
     }
     if (!qdrantService) {
-      const module = await import('../../../lib/vector/qdrant.js');
-      qdrantService = module.default;
+      const qdrantModule = await import('../../../lib/vector/qdrant.js');
+      qdrantService = qdrantModule.default;
     }
   } catch (error) {
     console.error('❌ Error loading dependencies:', error);
