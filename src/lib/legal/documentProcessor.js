@@ -2,10 +2,20 @@ import OpenAI from 'openai';
 
 class LegalDocumentProcessor {
   constructor() {
-    // Initialize OpenAI client if needed for enhanced processing
-    this.openai = process.env.OPENAI_API_KEY ? new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    }) : null;
+    // Remove OpenAI instantiation from constructor for build safety
+    // this.openai = process.env.OPENAI_API_KEY ? new OpenAI({
+    //   apiKey: process.env.OPENAI_API_KEY,
+    // }) : null;
+  }
+
+  // Lazy initialization of OpenAI client
+  get openai() {
+    if (!this._openai && process.env.OPENAI_API_KEY) {
+      this._openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+    }
+    return this._openai || null;
   }
 
   // Parse PDF and extract legal structure

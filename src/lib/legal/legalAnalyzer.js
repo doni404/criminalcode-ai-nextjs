@@ -5,9 +5,10 @@ import qdrantService from '../vector/qdrant.js';
 
 class LegalAnalyzer {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    // Remove OpenAI instantiation from constructor
+    // this.openai = new OpenAI({
+    //   apiKey: process.env.OPENAI_API_KEY,
+    // });
     
     this.eightItemModel = new EightItemModel();
     this.flowchartModel = new ConstituentElementFlowchart();
@@ -20,6 +21,16 @@ class LegalAnalyzer {
       FLOWCHART: 'flowchart',
       COMPREHENSIVE: 'comprehensive'
     };
+  }
+
+  // Lazy initialization of OpenAI client
+  get openai() {
+    if (!this._openai) {
+      this._openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+    }
+    return this._openai;
   }
 
   // Main analysis entry point

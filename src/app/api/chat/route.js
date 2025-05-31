@@ -1,10 +1,6 @@
 import OpenAI from 'openai';
 import { NextResponse } from 'next/server';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 const SYSTEM_PROMPT = `You are a specialized Criminal Code AI Assistant designed to analyze criminal cases and provide expert legal analysis. Your role is to:
 
 1. Analyze criminal case descriptions provided by users
@@ -43,6 +39,11 @@ export async function POST(request) {
         { status: 400 }
       );
     }
+
+    // Instantiate OpenAI client here instead of at module level
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     // Check if any PDFs are enabled for vector database search
     const hasEnabledPDFs = enabledPDFs && Array.isArray(enabledPDFs) && enabledPDFs.length > 0;
