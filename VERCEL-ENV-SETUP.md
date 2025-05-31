@@ -10,7 +10,7 @@
 ### Step 2: Add Environment Variables
 1. Go to **Settings** tab
 2. Click **Environment Variables** in the sidebar
-3. Add these 3 required variables:
+3. Add these 4 required variables:
 
 #### **Environment Variables to Add:**
 
@@ -18,6 +18,7 @@
 |---------------|-------|-------------|
 | `OPENAI_API_KEY` | `your_actual_openai_key` | Production, Preview, Development |
 | `QDRANT_URL` | `https://6464c6b9-f09e-4bd0-b38b-e9159c6fd1f3.us-east-1-0.aws.cloud.qdrant.io:6333` | Production, Preview, Development |
+| `QDRANT_API_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.086XrmuBPqw8Fi1ty6IoFE8IlvZM9J5VNuOyJcEgqG8` | Production, Preview, Development |
 | `NEXT_PUBLIC_APP_URL` | `https://your-vercel-url.vercel.app` | Production, Preview, Development |
 
 ### Step 3: For Each Variable:
@@ -41,9 +42,10 @@ After adding all variables:
 - Get from: [OpenAI Platform](https://platform.openai.com/api-keys)
 - Format: `sk-proj-...` (starts with sk-proj)
 
-### Qdrant URL (Already Known)
+### Qdrant Cloud (Already Known)
 ```
-https://6464c6b9-f09e-4bd0-b38b-e9159c6fd1f3.us-east-1-0.aws.cloud.qdrant.io:6333
+URL: https://6464c6b9-f09e-4bd0-b38b-e9159c6fd1f3.us-east-1-0.aws.cloud.qdrant.io:6333
+API Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.086XrmuBPqw8Fi1ty6IoFE8IlvZM9J5VNuOyJcEgqG8
 ```
 
 ### App URL (After First Deploy)
@@ -56,6 +58,7 @@ https://criminalcode-ai-nextjs-[random].vercel.app
 ## ✅ **Quick Checklist:**
 - [ ] OPENAI_API_KEY added to Vercel
 - [ ] QDRANT_URL added to Vercel  
+- [ ] QDRANT_API_KEY added to Vercel
 - [ ] NEXT_PUBLIC_APP_URL added to Vercel
 - [ ] All variables set for all environments
 - [ ] Redeployed after adding variables
