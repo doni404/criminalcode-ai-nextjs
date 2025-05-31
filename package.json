@@ -6,6 +6,7 @@
     "dev": "next dev --turbopack --port 3002",
     "build": "next build",
     "start": "next start --port 3000",
+    "start:standalone": "node .next/standalone/server.js",
     "lint": "next lint"
   },
   "dependencies": {
