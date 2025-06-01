@@ -331,7 +331,7 @@ export default function PDFViewer({
         {searchQuery && searchResults.length === 0 && !isSearching && (
           <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border-t border-yellow-200 dark:border-yellow-800">
             <p className="text-sm text-yellow-800 dark:text-yellow-200">
-              No results found for "{searchQuery}". Try a different search term.
+              No results found for &ldquo;{searchQuery}&rdquo;. Try a different search term.
             </p>
           </div>
         )}
@@ -339,7 +339,7 @@ export default function PDFViewer({
         {searchResults.length > 0 && (
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200 dark:border-blue-800">
             <p className="text-sm text-blue-800 dark:text-blue-200">
-              Searching for "{searchQuery}" in PDF
+              Searching for &ldquo;{searchQuery}&rdquo; in PDF
               <span className="ml-2 text-xs bg-blue-200 dark:bg-blue-800 px-2 py-1 rounded">
                 🔍 Use Ctrl+F for more results
               </span>

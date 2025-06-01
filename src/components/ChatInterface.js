@@ -59,7 +59,7 @@ export default function ChatInterface() {
     };
   }, [isMounted]);
 
-  // Update welcome message when enabled PDFs count changes - FIXED: removed messages from dependencies
+  // Update welcome message when enabled PDFs count changes
   useEffect(() => {
     if (isMounted && enabledPDFsCount >= 0 && messages.length > 0) {
       // Only update if we have the initial message and it's already set
@@ -115,7 +115,7 @@ Please describe the criminal case or situation you'd like me to analyze.`
         return prev;
       });
     }
-  }, [enabledPDFsCount, analysisMode, isMounted]); // Removed messages dependency to prevent loops
+  }, [enabledPDFsCount, analysisMode, isMounted, messages.length]); // Added messages.length to dependencies
 
   // Initialize on client side only to prevent hydration issues
   useEffect(() => {
@@ -184,7 +184,8 @@ Please describe the criminal case or situation you'd like me to analyze.`;
       setMessages([initialMessage]);
       setEnabledPDFsCount(currentEnabledCount);
     }
-  }, [isMounted, analysisMode]); // Remove messages dependency - only run when mounted or mode changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMounted, analysisMode]); // Suppress warning for messages.length - only run when mounted or mode changes
 
   /**
    * Parse AI response to create condensed and full versions
@@ -350,7 +351,7 @@ Please describe the criminal case or situation you'd like me to analyze.`;
       
       return () => clearTimeout(timeoutId);
     }
-  }, [messages.length, isMounted]); // Only depend on messages.length to prevent excessive re-renders
+  }, [messages.length, isMounted]); // Dependencies are correct - only scroll when message count changes
   
   // Close tooltip when clicking outside
   useEffect(() => {
