@@ -340,7 +340,21 @@ export default function PDFManager() {
                   {/* Action Buttons */}
                   <div className="flex items-center space-x-2">
                     <button
-                      onClick={() => window.open(pdf.fileUrl, '_blank')}
+                      onClick={() => {
+                        // Use the viewerUrl from the API which handles blob vs local URLs correctly
+                        const viewerUrl = pdf.viewerUrl || pdf.fileUrl;
+                        if (viewerUrl.includes('pdfjs/web/viewer.html')) {
+                          // PDF.js viewer URL - open directly
+                          window.open(viewerUrl, '_blank');
+                        } else if (pdf.storage === 'blob') {
+                          // Blob storage - use direct blob URL
+                          window.open(pdf.downloadUrl || pdf.fileUrl, '_blank');
+                        } else {
+                          // Local storage - try PDF.js viewer first, fallback to direct
+                          const pdfJsUrl = `/pdfjs/web/viewer.html?file=${encodeURIComponent(pdf.fileUrl)}`;
+                          window.open(pdfJsUrl, '_blank');
+                        }
+                      }}
                       className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-md transition-colors"
                       title="View PDF"
                     >
@@ -349,7 +363,7 @@ export default function PDFManager() {
                     <button
                       onClick={() => {
                         const link = document.createElement('a');
-                        link.href = pdf.fileUrl;
+                        link.href = pdf.downloadUrl || pdf.fileUrl;
                         link.download = pdf.fileName;
                         link.click();
                       }}
