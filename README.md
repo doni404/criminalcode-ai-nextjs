@@ -51,34 +51,109 @@ npm install
 
 ### 3. Set Up Environment Variables
 Create a `.env.local` file in the root directory:
-```env
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key_here
 
-# Qdrant Vector Database Configuration (criminal-code-ai-v2)
+#### Required Variables
+```env
+# OpenAI Configuration (Required)
+OPENAI_API_KEY=your_openai_api_key
+
+# Qdrant Vector Database Configuration (Required)
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
-# Remove QDRANT_URL and QDRANT_API_KEY for local setup
 
-# Vercel Blob Storage Configuration (for production)
-BLOB_READ_WRITE_TOKEN=your_vercel_blob_token_here
+# For Qdrant Cloud (Production - Optional)
+# QDRANT_URL=https://your-cluster.qdrant.tech:6333
+# QDRANT_API_KEY=your_qdrant_cloud_api_key
 
-# Next.js Configuration
-NEXTAUTH_SECRET=your_nextauth_secret_here
+# Next.js Configuration (Required)
+NEXTAUTH_SECRET=your_random_secret_string_32_chars
 NEXTAUTH_URL=http://localhost:3000
 ```
 
-### 4. Vector Database Setup
-**Qdrant Cloud (Current Setup)**
-✅ **Already configured!** This project uses Qdrant Cloud for production
-- Collections are automatically created on first use
-- No local setup required
-- Configure your credentials in `.env.local`
+#### Optional Variables (Production)
+```env
+# Vercel Blob Storage (Optional - for production file storage)
+# If not provided, uses local filesystem storage
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_token_here
 
-**Local Development Alternative (Optional)**
+# File Upload Limits (Optional)
+MAX_FILE_SIZE=52428800  # 50MB default
+
+# Development Settings (Optional)
+NODE_ENV=development
+```
+
+#### Complete .env.local Example
+```env
+# === REQUIRED CONFIGURATION ===
+
+# OpenAI API Configuration
+OPENAI_API_KEY=sk-proj-abcd1234...your-actual-openai-key
+
+# Qdrant Vector Database (Local Development)
+QDRANT_HOST=localhost
+QDRANT_PORT=6333
+
+# Next.js Security
+NEXTAUTH_SECRET=super-secret-string-32-characters-long
+NEXTAUTH_URL=http://localhost:3000
+
+# === OPTIONAL CONFIGURATION ===
+
+# Production Qdrant Cloud (uncomment for production)
+# QDRANT_URL=https://your-cluster.qdrant.tech:6333
+# QDRANT_API_KEY=qr_your-qdrant-cloud-api-key
+
+# Vercel Blob Storage (uncomment for production)
+# BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your-token
+
+# File Upload Settings
+MAX_FILE_SIZE=52428800
+
+# Environment
+NODE_ENV=development
+```
+
+### 4. Vector Database Setup
+
+#### Option A: Qdrant Cloud (Recommended for Production)
+1. Create account at [Qdrant Cloud](https://cloud.qdrant.io/)
+2. Create a new cluster
+3. Get your cluster URL and API key
+4. Update your `.env.local` with Qdrant Cloud credentials
+
+#### Option B: Local Qdrant (Development)
 ```bash
-# If you prefer local development
+# Start Qdrant with Docker
 docker run -p 6333:6333 qdrant/qdrant
+
+# Or with persistent storage
+docker run -p 6333:6333 -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant
+
+# Verify Qdrant is running
+curl http://localhost:6333/health
+```
+
+#### Option C: Docker Compose (Recommended for Local Development)
+Create `docker-compose.yml`:
+```yaml
+version: '3.8'
+services:
+  qdrant:
+    image: qdrant/qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+volumes:
+  qdrant_data:
+```
+
+Then run:
+```bash
+docker-compose up -d
 ```
 
 ### 5. Run the Development Server
@@ -134,12 +209,15 @@ Progressive questioning system that guides users through systematic legal analys
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| **Frontend** | Next.js 15, React 18, Tailwind CSS | Modern, responsive UI |
-| **Backend** | Node.js, API Routes | Server-side processing |
-| **AI/ML** | OpenAI GPT-4, text-embedding-ada-002 | Legal analysis and embeddings |
-| **Vector DB** | Qdrant (Rust-based) | High-performance semantic search |
-| **PDF Processing** | PDF.js, pdf-lib | Document parsing and viewing |
-| **Styling** | Tailwind CSS, Lucide Icons | Beautiful, consistent design |
+| **Frontend** | Next.js 15, React 18, Tailwind CSS | Modern, responsive UI with SSR |
+| **Backend** | Node.js, API Routes | Server-side processing and APIs |
+| **AI/ML** | OpenAI GPT-4, text-embedding-ada-002 | Legal analysis and semantic embeddings |
+| **Vector DB** | Qdrant (Rust-based) | High-performance semantic search and metadata storage |
+| **PDF Processing** | PDF.js, react-pdf, pdf-lib | Document parsing, viewing, and text extraction |
+| **File Storage** | Hybrid (Local/Vercel Blob) | Automatic storage detection and fallback |
+| **UI Components** | Lucide Icons, Custom Components | Beautiful, accessible interface |
+| **Styling** | Tailwind CSS, CSS Modules | Responsive design and dark mode |
+| **State Management** | React Hooks, Context API | Client-side state and data management |
 
 ---
 
@@ -148,34 +226,68 @@ Progressive questioning system that guides users through systematic legal analys
 ```
 criminalcode-ai-nextjs/
 ├── src/
-│   ├── app/                     # Next.js App Router
+│   ├── app/                          # Next.js App Router
 │   │   ├── api/
-│   │   │   ├── chat/           # Simple chat API
-│   │   │   │   ├── analyze/    # Interactive analysis API
-│   │   │   │   ├── article-content/ # Article content fetching
-│   │   │   │   └── pdfs/       # PDF management API
-│   │   │   └── upload/         # PDF upload processing
-│   │   ├── layout.js           # App layout and metadata
-│   │   └── page.js             # Main application page
+│   │   │   ├── chat/                # Simple chat API endpoint
+│   │   │   ├── legal/
+│   │   │   │   ├── analyze/         # Interactive analysis API
+│   │   │   │   ├── article-content/ # Article content fetching API
+│   │   │   │   └── pdfs/            # PDF management API
+│   │   │   ├── upload/              # PDF upload processing API
+│   │   │   └── init/                # Database initialization API
+│   │   ├── globals.css              # Global styles and Tailwind
+│   │   ├── layout.js                # App layout and metadata
+│   │   └── page.js                  # Main application page
 │   ├── components/
-│   │   ├── ChatInterface.js    # Main chat interface
-│   │   ├── PDFManager.js       # Document management
-│   │   └── TabNavigation.js    # Navigation component
+│   │   ├── ChatInterface.js         # Main chat interface with condensed responses
+│   │   ├── PDFViewer.js             # In-browser PDF viewer with search
+│   │   ├── PDFManager.js            # Document management interface
+│   │   └── TabNavigation.js         # Tab navigation component
 │   └── lib/
 │       ├── legal/
-│       │   ├── legalAnalyzer.js     # Core analysis logic
-│       │   ├── documentProcessor.js # PDF processing
-│       │   ├── eightItemModel.js    # 8-Item framework
-│       │   └── constituentFlowchart.js # Decision trees
+│       │   ├── legalAnalyzer.js     # Core AI legal analysis logic
+│       │   ├── documentProcessor.js # PDF processing and extraction
+│       │   ├── eightItemModel.js    # 8-Item analysis framework
+│       │   └── constituentFlowchart.js # Decision tree logic
+│       ├── storage/
+│       │   └── fileStorage.js       # Hybrid storage system (Local/Blob)
 │       └── vector/
-│           └── qdrant.js       # Vector database operations
+│           └── qdrant.js            # Vector database operations
 ├── public/
-│   ├── pdfjs/                  # PDF.js viewer files
-│   └── uploads/                # Uploaded PDF storage
+│   ├── uploads/                     # Local file storage directory
+│   ├── pdf.worker.min.js            # PDF.js worker file
+│   ├── pdf.worker.min.mjs           # PDF.js worker (ES module)
+│   └── ...                         # Static assets
 ├── docs/
-│   └── images/                 # Screenshots and documentation images
-└── package.json                # Dependencies and scripts
+│   ├── images/                      # Screenshots and documentation
+│   └── ...                         # Project documentation
+├── .env.local                       # Environment configuration
+├── vercel.json                      # Vercel deployment configuration
+├── package.json                     # Dependencies and scripts
+├── tailwind.config.js               # Tailwind CSS configuration
+├── next.config.mjs                  # Next.js configuration
+└── README.md                        # Project documentation
 ```
+
+### Key Features by Directory
+
+#### `/src/app/api/`
+- **Hybrid storage detection** - Automatic Vercel Blob vs Local storage
+- **PDF processing pipeline** - Upload → Parse → Vector storage
+- **Interactive analysis engine** - Multi-stage legal consultation
+- **Article content retrieval** - Dynamic article fetching with metadata
+
+#### `/src/components/`
+- **Condensed response UI** - Smart content parsing with expandable details
+- **In-browser PDF viewer** - Search, navigate, and highlight articles
+- **Real-time file management** - Upload progress, enable/disable documents
+- **Responsive design** - Mobile-friendly interface with dark mode
+
+#### `/src/lib/`
+- **AI-powered analysis** - GPT-4 integration with legal frameworks
+- **Vector search engine** - Semantic search through legal documents
+- **Hybrid file storage** - Automatic detection and fallback mechanisms
+- **Document processing** - PDF parsing with article extraction
 
 ---
 
@@ -267,25 +379,75 @@ const response = await fetch('/api/chat', {
 ## 🔧 Configuration
 
 ### Environment Variables
-```env
-# Required
-OPENAI_API_KEY=sk-your-openai-api-key
 
-# Qdrant Database (adjust as needed)
+#### Development Setup (.env.local)
+```env
+# === REQUIRED CONFIGURATION ===
+
+# OpenAI API Configuration
+OPENAI_API_KEY=sk-proj-your-actual-openai-api-key
+
+# Qdrant Vector Database (Local Development)
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
 
-# Optional: For Qdrant Cloud
-# QDRANT_API_KEY=your-cloud-api-key
-# QDRANT_URL=your-cloud-instance-url
+# Next.js Security Configuration
+NEXTAUTH_SECRET=your-secure-random-32-character-string
+NEXTAUTH_URL=http://localhost:3000
 
-# Optional: Upload limits
+# === OPTIONAL CONFIGURATION ===
+
+# File Upload Settings
 MAX_FILE_SIZE=52428800  # 50MB default
+
+# Development Mode
+NODE_ENV=development
 ```
+
+#### Production Setup (.env.local)
+```env
+# === REQUIRED CONFIGURATION ===
+
+# OpenAI API Configuration
+OPENAI_API_KEY=sk-proj-your-actual-openai-api-key
+
+# Qdrant Cloud (Production)
+QDRANT_URL=https://your-cluster.qdrant.tech:6333
+QDRANT_API_KEY=qr_your-qdrant-cloud-api-key
+
+# Next.js Security Configuration
+NEXTAUTH_SECRET=your-secure-random-32-character-string
+NEXTAUTH_URL=https://your-domain.vercel.app
+
+# === OPTIONAL CONFIGURATION ===
+
+# Vercel Blob Storage (for file uploads)
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_your-token
+
+# File Upload Settings
+MAX_FILE_SIZE=52428800  # 50MB default
+
+# Production Mode
+NODE_ENV=production
+```
+
+### Storage Configuration
+
+The system uses a **hybrid storage approach**:
+
+#### Local Development
+- **Files**: Stored in `public/uploads/` directory
+- **Metadata**: Stored in Qdrant vector database
+- **Auto-detection**: No BLOB token = local storage
+
+#### Production (Vercel)
+- **With BLOB_READ_WRITE_TOKEN**: Uses Vercel Blob Storage
+- **Without BLOB token**: Falls back to local storage
+- **Metadata**: Always stored in Qdrant vector database
 
 ### Qdrant Setup Options
 
-#### Local Docker Setup
+#### Option 1: Local Docker Setup
 ```bash
 # Basic setup
 docker run -p 6333:6333 qdrant/qdrant
@@ -294,7 +456,7 @@ docker run -p 6333:6333 qdrant/qdrant
 docker run -p 6333:6333 -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant
 ```
 
-#### Docker Compose Setup
+#### Option 2: Docker Compose Setup
 ```yaml
 version: '3.8'
 services:
@@ -304,12 +466,17 @@ services:
       - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
 volumes:
   qdrant_data:
 ```
 
-#### Cloud Setup
-For production, consider using [Qdrant Cloud](https://cloud.qdrant.io/) for managed hosting.
+#### Option 3: Qdrant Cloud Setup (Recommended for Production)
+1. Sign up at [Qdrant Cloud](https://cloud.qdrant.io/)
+2. Create a new cluster
+3. Copy the cluster URL and API key
+4. Update your `.env.local` with the cloud credentials
 
 ---
 
