@@ -1,72 +1,113 @@
 import { NextResponse } from 'next/server';
-import { readdir, stat, access, unlink } from 'fs/promises';
-import path from 'path';
 
 export async function GET() {
   try {
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    // Load dependencies dynamically
+    const qdrantModule = await import('../../../../lib/vector/qdrant.js');
+    const qdrantService = qdrantModule.default;
     
-    // Check if uploads directory exists
+    const storageModule = await import('../../../../lib/storage/fileStorage.js');
+    const fileStorage = storageModule.default;
+    
+    // Get PDF metadata from vector database and storage
+    let pdfs = [];
+    let storageInfo = fileStorage.getStorageInfo();
+    
     try {
-      await access(uploadsDir);
-    } catch {
-      // Directory doesn't exist, return empty list
-      return NextResponse.json({
-        success: true,
-        pdfs: [],
-        message: 'No uploads directory found'
-      });
-    }
-
-    // Read all files in uploads directory
-    const files = await readdir(uploadsDir);
-    const pdfFiles = files.filter(file => file.toLowerCase().endsWith('.pdf'));
-    
-    // Get file stats for each PDF
-    const pdfs = await Promise.all(
-      pdfFiles.map(async (fileName) => {
-        const filePath = path.join(uploadsDir, fileName);
-        const stats = await stat(filePath);
-        
-        // Extract timestamp from filename if it exists (format: timestamp_filename.pdf)
-        const timestampMatch = fileName.match(/^(\d+)_(.+)$/);
-        const originalFileName = timestampMatch ? timestampMatch[2] : fileName;
-        const uploadTimestamp = timestampMatch ? parseInt(timestampMatch[1]) : stats.birthtime.getTime();
+      // First try to get PDFs from storage service
+      const storagePdfs = await fileStorage.listFiles();
+      console.log(`📁 Found ${storagePdfs.length} PDFs in storage`);
+      
+      // Get PDF metadata from vector database (re-enabled with proper API key)
+      const vectorPdfs = await qdrantService.getPDFMetadata();
+      console.log(`📊 Found ${vectorPdfs.length} PDFs in vector database`);
+      
+      // Merge storage and vector data
+      pdfs = storagePdfs.map(storagePdf => {
+        // Find matching vector metadata
+        const vectorMatch = vectorPdfs.find(vectorPdf => 
+          vectorPdf.fullFileName === storagePdf.fullFileName ||
+          vectorPdf.fileName === storagePdf.fullFileName
+        );
         
         return {
-          id: fileName.replace(/\.[^/.]+$/, ""), // Use filename without extension as ID
-          fileName: originalFileName,
-          fullFileName: fileName,
-          size: stats.size,
-          uploadDate: new Date(uploadTimestamp).toISOString(),
-          isEnabled: true, // Default to enabled, will be overridden by localStorage on client
-          vectorStatus: 'processed',
-          fileUrl: `/uploads/${fileName}`,
-          articlesProcessed: 0, // This could be enhanced to read from metadata
-          chaptersProcessed: 0
+          id: storagePdf.id,
+          fileName: storagePdf.fileName,
+          fullFileName: storagePdf.fullFileName,
+          size: storagePdf.size,
+          uploadDate: storagePdf.uploadDate,
+          isEnabled: true,
+          vectorStatus: vectorMatch ? 'processed' : 'pending',
+          fileUrl: storagePdf.fileUrl,
+          downloadUrl: storagePdf.downloadUrl,
+          viewerUrl: storageInfo.type === 'blob' 
+            ? `/pdfjs/web/viewer.html?file=${encodeURIComponent(storagePdf.downloadUrl)}`
+            : `/pdfjs/web/viewer.html?file=${encodeURIComponent(storagePdf.fileUrl)}`,
+          storage: storagePdf.storage,
+          articlesProcessed: vectorMatch?.articlesProcessed || 0,
+          chaptersProcessed: vectorMatch?.chaptersProcessed || 0,
+          crimeTypesStored: vectorMatch?.crimeTypesStored || 0,
+          articlesStored: vectorMatch?.articlesStored || 0
         };
-      })
-    );
-
+      });
+      
+    } catch (error) {
+      console.error('Error reading PDF metadata:', error);
+      
+      // Provide helpful error message with current storage info
+      return NextResponse.json({
+        success: false,
+        pdfs: [],
+        message: 'Unable to retrieve PDF list',
+        error: error.message,
+        storageInfo,
+        troubleshooting: {
+          issue: error.message.includes('Forbidden') ? 'Qdrant access forbidden' : 'Storage access error',
+          solution: error.message.includes('Forbidden') 
+            ? 'Check Qdrant API key configuration in environment variables'
+            : 'Check storage service configuration',
+          environment: storageInfo.environment,
+          hasBlob: storageInfo.hasBlobToken
+        },
+        count: 0,
+        totalSize: 0,
+        note: `Storage mode: ${storageInfo.description}`
+      }, { status: 500 });
+    }
+    
     // Sort by upload date (newest first)
     pdfs.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
 
     return NextResponse.json({
       success: true,
       pdfs,
+      message: pdfs.length > 0 
+        ? `Found ${pdfs.length} PDF(s) in ${storageInfo.description.toLowerCase()}` 
+        : 'No PDFs found',
       count: pdfs.length,
-      totalSize: pdfs.reduce((sum, pdf) => sum + pdf.size, 0)
+      totalSize: pdfs.reduce((sum, pdf) => sum + (pdf.size || 0), 0),
+      storageInfo,
+      features: {
+        upload: true,
+        download: true,
+        view: true,
+        delete: true,
+        vectorSearch: true
+      }
     });
 
   } catch (error) {
-    console.error('Error reading PDF files:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to read PDF files',
-        message: error.message 
-      },
-      { status: 500 }
-    );
+    console.error('❌ PDF list endpoint error:', error);
+    
+    return NextResponse.json({
+      success: false,
+      pdfs: [],
+      message: 'Failed to retrieve PDF list',
+      error: error.message,
+      count: 0,
+      totalSize: 0,
+      note: 'API endpoint error'
+    }, { status: 500 });
   }
 }
 
@@ -76,22 +117,20 @@ export async function POST(request) {
 
     switch (action) {
       case 'toggle':
-        // In a real implementation, this would update a database
-        // For now, we'll just return success since the client handles state
         return NextResponse.json({
           success: true,
           message: `PDF ${enabled ? 'enabled' : 'disabled'} for vector database`,
           pdfId,
-          enabled
+          enabled,
+          note: 'Vector database state managed separately'
         });
 
       case 'delete':
-        // In a real implementation, this would delete the file
-        // For now, just return success
         return NextResponse.json({
           success: true,
           message: 'PDF marked for deletion',
-          pdfId
+          pdfId,
+          note: 'File system storage not available in serverless deployment'
         });
 
       default:
@@ -115,49 +154,56 @@ export async function POST(request) {
 
 export async function DELETE(request) {
   try {
-    const { fileName } = await request.json();
+    const { searchParams } = new URL(request.url);
+    const fileName = searchParams.get('file');
     
     if (!fileName) {
       return NextResponse.json(
-        { error: 'File name is required' },
+        { error: 'No file name provided' },
         { status: 400 }
       );
     }
 
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    const filePath = path.join(uploadsDir, fileName);
+    // Load storage service
+    const storageModule = await import('../../../../lib/storage/fileStorage.js');
+    const fileStorage = storageModule.default;
     
+    // Delete file from storage
+    const deleteResult = await fileStorage.deleteFile(fileName);
+    
+    // Also try to remove from vector database if needed
     try {
-      // Check if file exists
-      await access(filePath);
+      const qdrantModule = await import('../../../../lib/vector/qdrant.js');
+      const qdrantService = qdrantModule.default;
       
-      // Delete the file
-      await unlink(filePath);
-      
-      console.log(`🗑️ Successfully deleted file: ${fileName}`);
-      
+      // Remove PDF metadata from vector database
+      await qdrantService.deletePDFMetadata(fileName);
+      console.log(`🗑️ Removed PDF metadata from vector database: ${fileName}`);
+    } catch (vectorError) {
+      console.warn('⚠️ Could not remove from vector database:', vectorError.message);
+    }
+
+    if (deleteResult.success) {
       return NextResponse.json({
         success: true,
-        message: `File ${fileName} deleted successfully`
+        message: deleteResult.message,
+        fileName: fileName
       });
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        return NextResponse.json({
-          success: true,
-          message: `File ${fileName} was already deleted or doesn't exist`
-        });
-      }
-      throw error;
+    } else {
+      return NextResponse.json({
+        success: false,
+        message: deleteResult.message,
+        fileName: fileName
+      }, { status: 500 });
     }
-    
+
   } catch (error) {
     console.error('❌ Error deleting PDF file:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to delete PDF file',
-        details: error.message 
-      },
-      { status: 500 }
-    );
+    
+    return NextResponse.json({
+      success: false,
+      message: `Failed to delete file: ${error.message}`,
+      error: error.message
+    }, { status: 500 });
   }
 } 

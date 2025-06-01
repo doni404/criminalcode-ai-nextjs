@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
-import path from 'path';
 
 // Dynamic import to handle potential module loading issues
 let LegalDocumentProcessor;
 let qdrantService;
+let fileStorage;
 
 async function loadDependencies() {
   try {
@@ -15,6 +14,10 @@ async function loadDependencies() {
     if (!qdrantService) {
       const qdrantModule = await import('../../../lib/vector/qdrant.js');
       qdrantService = qdrantModule.default;
+    }
+    if (!fileStorage) {
+      const storageModule = await import('../../../lib/storage/fileStorage.js');
+      fileStorage = storageModule.default;
     }
   } catch (error) {
     console.error('❌ Error loading dependencies:', error);
@@ -56,21 +59,69 @@ export async function POST(request) {
 
     console.log(`📄 Processing PDF: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
 
-    // Load dependencies dynamically
-    await loadDependencies();
-    const documentProcessor = new LegalDocumentProcessor();
+    // Load dependencies
+    try {
+      await loadDependencies();
+    } catch (depError) {
+      console.error('❌ Dependency loading failed:', depError);
+      return NextResponse.json({
+        error: 'Failed to load required dependencies',
+        details: depError.message,
+        category: 'DEPENDENCY_ERROR'
+      }, { status: 500 });
+    }
 
     // Convert file to buffer
     const buffer = Buffer.from(await file.arrayBuffer());
     console.log(`📄 Successfully converted to buffer: ${buffer.length} bytes`);
 
+    // Upload file to storage
+    console.log('📁 Uploading file to storage...');
+    let uploadResult;
+    try {
+      uploadResult = await fileStorage.uploadFile(buffer, file.name, file.type);
+      console.log(`✅ File uploaded successfully: ${uploadResult.fileName}`);
+    } catch (uploadError) {
+      console.error('❌ File upload failed:', uploadError);
+      return NextResponse.json({
+        error: 'File upload failed',
+        details: uploadError.message,
+        category: 'UPLOAD_ERROR'
+      }, { status: 500 });
+    }
+
+    // Create document processor instance
+    let documentProcessor;
+    try {
+      documentProcessor = new LegalDocumentProcessor();
+    } catch (processorError) {
+      console.error('❌ Document processor creation failed:', processorError);
+      return NextResponse.json({
+        error: 'Failed to create document processor',
+        details: processorError.message,
+        category: 'PROCESSOR_ERROR'
+      }, { status: 500 });
+    }
+
     // Process the PDF
     console.log('🔄 Starting PDF processing...');
-    const processedData = await documentProcessor.processCriminalCodePDF(buffer);
+    let processedData;
+    try {
+      processedData = await documentProcessor.processCriminalCodePDF(buffer);
+      console.log(`📄 Processed ${processedData.articles?.length || 0} articles, ${processedData.chapters?.length || 0} chapters`);
+    } catch (pdfError) {
+      console.error('❌ PDF processing failed:', pdfError);
+      return NextResponse.json({
+        error: 'PDF processing failed',
+        details: pdfError.message,
+        category: 'PDF_PROCESSING_ERROR'
+      }, { status: 500 });
+    }
 
     // Validate the processed structure
     const validation = documentProcessor.validateLegalStructure(processedData);
     if (!validation.isValid) {
+      console.log('❌ Legal structure validation failed:', validation.errors);
       return NextResponse.json(
         { 
           error: 'Invalid legal document structure', 
@@ -82,70 +133,92 @@ export async function POST(request) {
 
     // Prepare data for vector storage
     console.log('🔄 Preparing data for vector storage...');
-    const crimeNameData = await documentProcessor.prepareCrimeNameMasterData(processedData.articles);
-    const articlesData = await documentProcessor.prepareCriminalCodeArticlesData(
-      processedData.articles, 
-      processedData.chapters
-    );
-
-    console.log(`📊 Prepared ${crimeNameData.length} crime name records`);
-    console.log(`📊 Prepared ${articlesData.length} article records`);
+    let crimeNameData, articlesData;
+    try {
+      crimeNameData = await documentProcessor.prepareCrimeNameMasterData(processedData.articles);
+      articlesData = await documentProcessor.prepareCriminalCodeArticlesData(
+        processedData.articles, 
+        processedData.chapters
+      );
+      console.log(`📊 Prepared ${crimeNameData.length} crime name records and ${articlesData.length} article records`);
+    } catch (prepError) {
+      console.error('❌ Data preparation failed:', prepError);
+      return NextResponse.json({
+        error: 'Data preparation failed',
+        details: prepError.message,
+        category: 'DATA_PREPARATION_ERROR'
+      }, { status: 500 });
+    }
 
     // Store data in vector database
     console.log('🔄 Storing data in vector database...');
     try {
-      // Initialize collections if they don't exist
       await qdrantService.initializeCollections();
       
-      // Store crime name master data
       if (crimeNameData.length > 0) {
         await qdrantService.storeCrimeNameMaster(crimeNameData);
-        console.log(`✅ Stored ${crimeNameData.length} crime name records in vector database`);
+        console.log(`✅ Stored ${crimeNameData.length} crime name records`);
       }
       
-      // Store criminal code articles
       if (articlesData.length > 0) {
         await qdrantService.storeCriminalCodeArticles(articlesData);
-        console.log(`✅ Stored ${articlesData.length} article records in vector database`);
+        console.log(`✅ Stored ${articlesData.length} article records`);
       }
       
       console.log('✅ Vector database storage completed successfully');
     } catch (vectorError) {
       console.error('❌ Vector storage error:', vectorError);
-      // Continue with file storage even if vector storage fails
+      // Continue with success response even if vector storage fails
     }
 
-    // Save file to public/uploads directory
-    const fileName = `${Date.now()}_${file.name}`;
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    
-    // Ensure uploads directory exists
+    // Store PDF metadata for tracking uploads
     try {
-      await import('fs/promises').then(fs => fs.mkdir(uploadsDir, { recursive: true }));
-    } catch (error) {
-      console.log('Uploads directory already exists or created');
+      console.log('📋 UPLOAD: About to create PDF metadata object...');
+      const pdfMetadata = {
+        fileName: uploadResult.fileName,
+        originalFileName: uploadResult.originalFileName,
+        fileSize: file.size,
+        uploadDate: new Date().toISOString(),
+        articlesProcessed: processedData.articles.length,
+        chaptersProcessed: processedData.chapters.length,
+        crimeTypesStored: crimeNameData.length,
+        articlesStored: articlesData.length,
+        fileUrl: uploadResult.url,
+        downloadUrl: uploadResult.downloadUrl,
+        storage: uploadResult.storage
+      };
+      
+      console.log('📋 UPLOAD: PDF metadata created, calling storePDFMetadata...');
+      console.log('📋 UPLOAD: Metadata object:', JSON.stringify(pdfMetadata, null, 2));
+      
+      await qdrantService.storePDFMetadata(pdfMetadata);
+      console.log('✅ PDF metadata stored successfully');
+    } catch (metadataError) {
+      console.error('⚠️ Failed to store PDF metadata:', metadataError);
+      // Continue with success even if metadata storage fails
     }
-    
-    const filePath = path.join(uploadsDir, fileName);
-    await writeFile(filePath, buffer);
 
-    // Success response with processed data
+    // Success response with file storage info
     return NextResponse.json({
       success: true,
-      message: 'Criminal code document processed and stored in vector database successfully',
+      message: 'Criminal code document processed and stored successfully',
       data: {
-        fileName: file.name,
+        fileName: uploadResult.originalFileName,
+        fullFileName: uploadResult.fileName,
         fileSize: file.size,
+        fileUrl: uploadResult.url,
+        downloadUrl: uploadResult.downloadUrl,
+        storage: uploadResult.storage,
         articlesProcessed: processedData.articles.length,
         chaptersProcessed: processedData.chapters.length,
         crimeTypesStored: crimeNameData.length,
         articlesStored: articlesData.length,
         metadata: processedData.metadata,
-        sampleArticles: processedData.articles.slice(0, 2), // Show first 2 articles
-        sampleCrimeData: crimeNameData.slice(0, 2), // Show first 2 crime records
-        fileUrl: `/uploads/${fileName}`
+        sampleArticles: processedData.articles.slice(0, 2),
+        sampleCrimeData: crimeNameData.slice(0, 2)
       },
       timestamp: new Date().toISOString(),
+      storage: fileStorage.getStorageInfo(),
       vectorDatabase: {
         status: 'enabled',
         collections: ['crime_name_master', 'criminal_code_articles'],
