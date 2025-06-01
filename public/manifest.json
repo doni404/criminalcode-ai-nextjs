@@ -1,0 +1,57 @@
+{
+  "name": "Criminal Code AI Assistant",
+  "short_name": "Criminal Code AI",
+  "description": "Advanced AI-powered criminal law analysis assistant for Indonesian Penal Code",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e293b",
+  "theme_color": "#1e40af",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["legal", "education", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Criminal Code AI Assistant - Desktop View"
+    },
+    {
+      "src": "/screenshot-mobile.png", 
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Criminal Code AI Assistant - Mobile View"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Case Analysis",
+      "short_name": "New Case",
+      "description": "Start analyzing a new criminal case",
+      "url": "/?action=new-case",
+      "icons": [
+        {
+          "src": "/favicon.svg",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  }
+} 
