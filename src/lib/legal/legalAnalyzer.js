@@ -498,6 +498,31 @@ class LegalAnalyzer {
     console.log(`📝 Conversation history length: ${conversationHistory.length}`);
     console.log(`📋 Last 2 messages:`, conversationHistory.slice(-2));
 
+    // First, check if this is a non-criminal topic
+    const topicCheck = await this.checkIfCriminalTopic(caseDescription, conversationHistory);
+    if (!topicCheck.isCriminalRelated) {
+      console.log('🚫 Non-criminal topic detected, providing appropriate response');
+      return {
+        mode: this.modes.INTERACTIVE,
+        stage: 'non_criminal_topic',
+        description: caseDescription,
+        analysis: topicCheck.response,
+        parsedResponse: {
+          stage: 'non_criminal_topic',
+          isAnalysisComplete: true,
+          isNonCriminalTopic: true,
+          potentialArticles: [],
+          questions: [],
+          requiresDocuments: false
+        },
+        vectorResults: { articles: [], caselaw: [], crimeNames: [] },
+        conversationLength: conversationHistory.length,
+        isComplete: true,
+        nextStage: 'complete',
+        timestamp: new Date().toISOString()
+      };
+    }
+
     // Determine what stage of analysis we're in
     const analysisStage = this.determineAnalysisStage(conversationHistory);
     console.log(`🎯 Determined analysis stage: ${analysisStage}`);
@@ -539,6 +564,237 @@ class LegalAnalyzer {
         error: error.message,
         fallbackResponse: "I apologize, but I'm having technical difficulties. Please provide more details about the case and I'll do my best to help identify the applicable criminal codes."
       };
+    }
+  }
+
+  async checkIfCriminalTopic(description, conversationHistory = []) {
+    // Check if we're in the middle of an ongoing criminal case analysis
+    const isOngoingCriminalAnalysis = this.isOngoingCriminalAnalysis(conversationHistory);
+    
+    // If we're in an ongoing criminal analysis, allow short answers and follow-ups
+    if (isOngoingCriminalAnalysis) {
+      // Allow simple responses during criminal case analysis
+      const allowedDuringAnalysis = [
+        /^(yes|no|ok|okay|sure|right|correct|exactly)\.?$/i,
+        /^(maybe|possibly|probably|unlikely|i think so|not sure)\.?$/i,
+        /^(none|nothing|nobody|no one|not applicable|n\/a)\.?$/i,
+        /^(please|can you|could you|what about|how about).*$/i,
+        /^.{1,10}$/i, // Very short responses during analysis are usually answers
+      ];
+      
+      const isAllowedResponse = allowedDuringAnalysis.some(pattern => 
+        pattern.test(description.trim())
+      );
+      
+      if (isAllowedResponse) {
+        console.log('✅ Allowing short response during ongoing criminal analysis');
+        return { isCriminalRelated: true };
+      }
+    }
+
+    // Count CONSECUTIVE non-criminal attempts (not just any in history)
+    const consecutiveNonCriminalAttempts = this.countConsecutiveNonCriminalAttempts(conversationHistory);
+    
+    // Only apply strict filtering after 2 consecutive non-criminal attempts
+    if (consecutiveNonCriminalAttempts >= 2) {
+      console.log(`🚫 Stopping after ${consecutiveNonCriminalAttempts} consecutive non-criminal attempts`);
+      return {
+        isCriminalRelated: false,
+        response: this.generateProgressiveWarningResponse(description, consecutiveNonCriminalAttempts, conversationHistory)
+      };
+    }
+    
+    // Pattern matching for OBVIOUSLY non-criminal topics (much more restrictive)
+    const obviouslyNonCriminalPatterns = [
+      // Direct AI/system questions
+      /^(hi|hello|hey)[,\s!]*(who are you|what are you|are you)/i,
+      /^who are you\?*$/i,
+      /are you (an? )?(ai|artificial intelligence|bot|robot|4rtificial|1ntelligence)/i,
+      /you are (an? )?(ai|artificial intelligence|bot|robot|4rtificial|1ntelligence)/i,
+      
+      // Data/system requests
+      /(show|tell|send|give) me (your|the) (database|system|code|model|data|information)/i,
+      /^(show|display|give|send) me (your )?(database|data|information|system|files|code)/i,
+      
+      // Pure greetings without context
+      /^(hi|hello|hey|good morning|good afternoon|good evening)\.?$/i,
+      
+      // Aggressive/testing language  
+      /(go die|shut up|fuck off|get lost)/i,
+      /^(test|testing|check)\.?$/i,
+      
+      // Empty or meaningless content
+      /^[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]*$/,
+    ];
+
+    // Only flag if it matches obviously non-criminal patterns AND we're not in analysis
+    const isObviouslyNonCriminal = obviouslyNonCriminalPatterns.some(pattern => 
+      pattern.test(description.trim())
+    );
+
+    if (isObviouslyNonCriminal && !isOngoingCriminalAnalysis) {
+      console.log('🚫 Detected obviously non-criminal topic');
+      return {
+        isCriminalRelated: false,
+        response: this.generateProgressiveWarningResponse(description, consecutiveNonCriminalAttempts, conversationHistory)
+      };
+    }
+
+    // If none of the obvious patterns match, assume it's criminal-related
+    // This is much more permissive than before
+    console.log('✅ Allowing topic - assumed criminal-related');
+    return { isCriminalRelated: true };
+  }
+
+  isOngoingCriminalAnalysis(conversationHistory) {
+    if (conversationHistory.length < 2) return false;
+    
+    // Check last few AI responses for criminal analysis indicators
+    const recentAIResponses = [];
+    for (let i = 1; i < conversationHistory.length && recentAIResponses.length < 3; i += 2) {
+      if (conversationHistory[i]) {
+        recentAIResponses.push(conversationHistory[i].toLowerCase());
+      }
+    }
+    
+    const criminalAnalysisIndicators = [
+      'initial assessment',
+      'criminal categories',
+      'articles being considered',
+      'article \\d+',
+      'indonesian penal code',
+      'criminal code',
+      'legal determination',
+      'critical question',
+      'legal reasoning',
+      'potential charges',
+      'criminal elements',
+      'theft|fraud|assault|murder|robbery',
+      'penalty|imprisonment|fine',
+      'constituent elements',
+      'legal analysis'
+    ];
+    
+    const hasRecentCriminalAnalysis = recentAIResponses.some(response =>
+      criminalAnalysisIndicators.some(indicator => 
+        new RegExp(indicator, 'i').test(response)
+      )
+    );
+    
+    console.log(`🔍 Ongoing criminal analysis check: ${hasRecentCriminalAnalysis}`);
+    return hasRecentCriminalAnalysis;
+  }
+
+  countConsecutiveNonCriminalAttempts(conversationHistory) {
+    let consecutiveCount = 0;
+    
+    // Look at recent AI responses from the end backwards
+    for (let i = conversationHistory.length - 1; i >= 1; i -= 2) {
+      const aiResponse = conversationHistory[i];
+      if (aiResponse && (
+        aiResponse.includes("I'm a Criminal Code AI Assistant") ||
+        aiResponse.includes("please describe a criminal case") ||
+        aiResponse.includes("This appears to be off-topic") ||
+        aiResponse.includes("conversation has been limited")
+      )) {
+        consecutiveCount++;
+      } else {
+        // If we find a non-warning response, stop counting
+        break;
+      }
+    }
+    
+    console.log(`📊 Consecutive non-criminal attempts: ${consecutiveCount}`);
+    return consecutiveCount;
+  }
+
+  generateProgressiveWarningResponse(description, attemptCount, conversationHistory = []) {
+    const desc = description.toLowerCase();
+    
+    // First attempt - Helpful guidance
+    if (attemptCount === 0) {
+      if (desc.includes('hi') || desc.includes('hello') || desc.includes('hey')) {
+        return `Hello! I'm a Criminal Code AI Assistant specialized in Indonesian Penal Code analysis.
+
+**I'm here to help with criminal law matters such as:**
+• Analyzing criminal cases and violations
+• Identifying applicable penal code articles
+• Explaining legal penalties and consequences
+• Providing legal guidance on criminal matters
+
+Please describe a criminal case, legal situation, or potential violation you'd like me to analyze. For example:
+• "Someone broke into my house and stole items"
+• "A person was caught selling illegal drugs"
+• "What are the penalties for fraud?"
+• "Help me analyze this assault case"
+
+How can I assist you with criminal law analysis today?`;
+      } else if (desc.includes('ai') || desc.includes('artificial intelligence') || desc.includes('who are you')) {
+        return `I'm a Criminal Code AI Assistant designed specifically for Indonesian Penal Code analysis.
+
+**My specialized functions:**
+• Criminal law case analysis
+• Article identification and legal guidance
+• Penalty calculations and recommendations
+• Legal element analysis
+
+**Ready to help with criminal law matters!** Please describe a criminal case, legal violation, or potential crime you'd like me to analyze. I'll provide comprehensive legal analysis including relevant articles, penalties, and recommendations.
+
+What criminal law matter can I assist you with?`;
+      } else {
+        return `Thank you for your message! I'm a Criminal Code AI Assistant focused on Indonesian criminal law analysis.
+
+**I can help you with:**
+• Criminal case analysis and legal violations
+• Identifying applicable criminal code articles
+• Legal penalties and consequences
+• Criminal law guidance and recommendations
+
+**Please share a criminal case or legal matter** you'd like me to analyze. For example, describe a crime, violation, or legal situation that needs criminal code analysis.
+
+What criminal law issue can I help you with today?`;
+      }
+    }
+    
+    // Second attempt - Stronger warning
+    else if (attemptCount === 1) {
+      return `**Please Note:** This appears to be off-topic for criminal law analysis.
+
+I'm specifically designed to analyze **criminal cases under the Indonesian Penal Code**. I cannot assist with:
+• General conversation or personal questions
+• Technical questions about AI systems
+• Non-legal matters or casual chat
+
+**I need you to describe an actual criminal case** such as:
+• "A person committed theft/fraud/assault"
+• "Someone violated traffic laws and caused harm"
+• "What charges apply when [criminal act] occurs?"
+• "Help analyze this [specific crime] case"
+
+**This is your second attempt.** Please provide a genuine criminal law matter for analysis, or the conversation will be limited to protect system resources.
+
+Do you have a criminal case or legal violation to discuss?`;
+    }
+    
+    // Third attempt - Final warning and stop
+    else {
+      return `**⚠️ CONVERSATION TERMINATED ⚠️**
+
+This conversation has been limited due to repeated off-topic messages. 
+
+**This AI Assistant is exclusively for:**
+• Indonesian Criminal Code analysis
+• Criminal law case evaluation
+• Legal violation assessment
+• Penalty and article identification
+
+**For criminal law assistance:**
+Please start a new conversation with a genuine criminal case or legal violation that requires analysis under the Indonesian Penal Code.
+
+**For other inquiries:**
+Please use appropriate channels or general-purpose AI assistants.
+
+Thank you for understanding. Please start a new chat if you have actual criminal law matters to discuss.`;
     }
   }
 

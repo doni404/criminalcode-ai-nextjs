@@ -452,48 +452,78 @@ Please describe the criminal case or situation you'd like me to analyze.`;
         const result = data.result || data;
         
         if (result.analysis) {
-          // Extract question from parsed response if available
-          const hasQuestion = result.parsedResponse?.questions?.length > 0;
-          const question = hasQuestion ? result.parsedResponse.questions[0] : null;
+          // Check if this is a non-criminal topic response
+          const isNonCriminalTopic = result.parsedResponse?.isNonCriminalTopic || false;
           
-          // Format content based on whether there's a question
-          let formattedContent = result.analysis;
-          if (question && !result.isComplete) {
-            formattedContent += `\n\n**Question:** ${question}`;
-          }
-          
-          botResponse = {
-            id: `bot_${messageTimestamp + 1}`,
-            type: 'bot',
-            content: formattedContent,
-            timestamp: messageTimestamp + 1,
-            metadata: {
-              stage: result.stage || 'analysis',
-              rawAnalysis: result.analysis,
-              rawQuestion: question,
-              potentialArticles: result.parsedResponse?.potentialArticles || [],
-              isComplete: result.isComplete || false,
-              requiresDocuments: result.parsedResponse?.requiresDocuments || false,
-              conversationId: data.conversationId || Date.now()
-            }
-          };
-          
-          // Check if chat is complete based on AI response
-          const isCompleteResponse = result.isComplete || 
-            result.analysis?.toLowerCase().includes('final determination') ||
-            result.analysis?.toLowerCase().includes('case conclusion') ||
-            result.analysis?.toLowerCase().includes('complete analysis') ||
-            (!question && result.stage !== 'initial_assessment');
+          if (isNonCriminalTopic) {
+            // Handle non-criminal topic response - no questions, no articles, no complex analysis
+            botResponse = {
+              id: `bot_${messageTimestamp + 1}`,
+              type: 'bot',
+              content: result.analysis,
+              timestamp: messageTimestamp + 1,
+              metadata: {
+                stage: 'non_criminal_topic',
+                isComplete: true,
+                isNonCriminalTopic: true,
+                potentialArticles: [],
+                hasQuestions: false,
+                isAnalysisComplete: true,
+                conversationId: data.conversationId || Date.now()
+              }
+            };
             
-          // Update chat completion state
-          setIsChatComplete(isCompleteResponse);
-          
-          // Update conversation history with user message and bot response
-          setConversationHistory(prev => [
-            ...prev, 
-            userMessage.content,  // Add user message
-            result.analysis       // Add bot analysis for context
-          ]);
+            // Mark chat as complete for non-criminal topics
+            setIsChatComplete(true);
+            
+            // Don't add to conversation history for non-criminal topics
+            // This prevents them from influencing future criminal law analysis
+          } else {
+            // Regular criminal law analysis response
+            const hasQuestion = result.parsedResponse?.questions?.length > 0;
+            const question = hasQuestion ? result.parsedResponse.questions[0] : null;
+            
+            // Format content based on whether there's a question
+            let formattedContent = result.analysis;
+            if (question && !result.isComplete) {
+              formattedContent += `\n\n**Question:** ${question}`;
+            }
+            
+            botResponse = {
+              id: `bot_${messageTimestamp + 1}`,
+              type: 'bot',
+              content: formattedContent,
+              timestamp: messageTimestamp + 1,
+              metadata: {
+                stage: result.stage || 'analysis',
+                rawAnalysis: result.analysis,
+                rawQuestion: question,
+                potentialArticles: result.parsedResponse?.potentialArticles || [],
+                isComplete: result.isComplete || false,
+                hasQuestions: hasQuestion,
+                isAnalysisComplete: result.isComplete || false,
+                requiresDocuments: result.parsedResponse?.requiresDocuments || false,
+                conversationId: data.conversationId || Date.now()
+              }
+            };
+            
+            // Check if chat is complete based on AI response
+            const isCompleteResponse = result.isComplete || 
+              result.analysis?.toLowerCase().includes('final determination') ||
+              result.analysis?.toLowerCase().includes('case conclusion') ||
+              result.analysis?.toLowerCase().includes('complete analysis') ||
+              (!question && result.stage !== 'initial_assessment');
+              
+            // Update chat completion state
+            setIsChatComplete(isCompleteResponse);
+            
+            // Update conversation history with user message and bot response (only for criminal law analysis)
+            setConversationHistory(prev => [
+              ...prev, 
+              userMessage.content,  // Add user message
+              result.analysis       // Add bot analysis for context
+            ]);
+          }
           
         } else {
           // Fallback for incomplete interactive response
@@ -1004,40 +1034,48 @@ Please describe the criminal case or situation you'd like me to analyze.`;
                   )}
                 </div>
                 
-                {/* Interactive Mode Metadata - only for bot messages */}
-                {message.type === 'bot' && message.metadata && analysisMode === 'interactive' && (
+                {/* Interactive Mode Metadata - only for bot messages and exclude non-criminal topics */}
+                {message.type === 'bot' && message.metadata && analysisMode === 'interactive' && !message.metadata.isNonCriminalTopic && (
                   <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-600">
-                    <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium">Analysis Stage:</span>
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          message.metadata.stage === 'limited_mode' 
-                            ? 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200'
-                            : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
-                        }`}>
-                          {message.metadata.stage?.replace('_', ' ').toUpperCase()}
-                        </span>
-                        {message.metadata.isComplete && (
-                          <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded text-xs">
-                            ✅ COMPLETE
+                    <div className="text-xs text-gray-600 dark:text-gray-400 space-y-2">
+                      {/* Analysis Stage Row */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium">Analysis Stage:</span>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            message.metadata.stage === 'limited_mode' 
+                              ? 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200'
+                              : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                          }`}>
+                            {message.metadata.stage?.replace('_', ' ').toUpperCase()}
                           </span>
-                        )}
-                        {message.metadata.requiresDocuments && (
-                          <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded text-xs">
-                            📋 NEEDS DOCUMENTS
-                          </span>
-                        )}
+                        </div>
+                        
+                        {/* Status indicators on the right */}
+                        <div className="flex items-center space-x-2">
+                          {message.metadata.isComplete && (
+                            <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded text-xs">
+                              ✅ COMPLETE
+                            </span>
+                          )}
+                          {message.metadata.requiresDocuments && (
+                            <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded text-xs">
+                              📋 NEEDS DOCUMENTS
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
+                      {/* Articles Considered Row */}
                       {message.metadata.potentialArticles?.length > 0 && (
-                        <div className="flex items-start space-x-2">
-                          <span className="font-medium flex-shrink-0">Articles Considered:</span>
-                          <div className="flex flex-wrap gap-1">
+                        <div className="space-y-1.5">
+                          <span className="font-medium block">Articles Considered:</span>
+                          <div className="flex flex-wrap gap-1.5">
                             {message.metadata.potentialArticles.map((article, index) => (
                               <button
                                 key={index}
                                 onClick={() => handleArticleClick(article)}
-                                className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded text-xs hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 border border-yellow-300 dark:border-yellow-700 hover:border-yellow-400 dark:hover:border-yellow-600 touch-manipulation"
+                                className="px-2.5 py-1.5 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded text-xs hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 border border-yellow-300 dark:border-yellow-700 hover:border-yellow-400 dark:hover:border-yellow-600 touch-manipulation"
                                 title={`Click to open ${article} in Indonesian Penal Code (KUHP)`}
                               >
                                 🔗 {article}
@@ -1047,15 +1085,29 @@ Please describe the criminal case or situation you'd like me to analyze.`;
                         </div>
                       )}
                       
+                      {/* Progress indicators */}
                       {message.metadata.hasQuestions && !message.metadata.isAnalysisComplete && (
-                        <div className="flex items-center space-x-2">
-                          <span className="text-blue-600 dark:text-blue-400">❓ Asking next critical question</span>
+                        <div className="flex items-center space-x-2 pt-1">
+                          {message.metadata.potentialArticles?.length > 0 ? (
+                            <span className="text-orange-600 dark:text-orange-400 flex items-center space-x-1">
+                              <span>🎯</span>
+                              <span>Narrowing down to specific article</span>
+                            </span>
+                          ) : (
+                            <span className="text-blue-600 dark:text-blue-400 flex items-center space-x-1">
+                              <span>❓</span>
+                              <span>Asking next critical question</span>
+                            </span>
+                          )}
                         </div>
                       )}
                       
                       {message.metadata.isAnalysisComplete && (
-                        <div className="flex items-center space-x-2">
-                          <span className="text-green-600 dark:text-green-400">🎯 Final determination reached</span>
+                        <div className="flex items-center space-x-2 pt-1">
+                          <span className="text-green-600 dark:text-green-400 flex items-center space-x-1">
+                            <span>🎯</span>
+                            <span>Final determination reached</span>
+                          </span>
                         </div>
                       )}
                     </div>
