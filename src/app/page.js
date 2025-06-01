@@ -1,12 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ChatInterface from '@/components/ChatInterface';
 import PDFManager from '@/components/PDFManager';
 import { MessageSquare, FileText } from 'lucide-react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('chat');
+
+  // Listen for custom event to switch to document management
+  useEffect(() => {
+    const handleSwitchToDocumentManagement = () => {
+      setActiveTab('documents');
+    };
+
+    window.addEventListener('switchToDocumentManagement', handleSwitchToDocumentManagement);
+    
+    return () => {
+      window.removeEventListener('switchToDocumentManagement', handleSwitchToDocumentManagement);
+    };
+  }, []);
 
   return (
     <div className="container mx-auto px-4 py-8" suppressHydrationWarning>

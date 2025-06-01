@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, AlertCircle, Loader2, X } from 'lucide-react';
 import PDFViewer from './PDFViewer';
+import { usePDFViewer } from './usePDFViewer';
 
 export default function ChatInterface() {
   // Core chat state
@@ -20,8 +21,10 @@ export default function ChatInterface() {
   // UI state for modals and interactions
   const [articleClickNotification, setArticleClickNotification] = useState('');
   const [articlePreview, setArticlePreview] = useState(null);
-  const [pdfViewer, setPdfViewer] = useState({ isOpen: false, pdfUrl: '', searchTerm: '', initialPage: 1 });
   const [tooltipMessage, setTooltipMessage] = useState(null); // Track which message has full analysis modal open
+  
+  // Shared PDF viewer functionality
+  const { pdfViewer, openFromArticlePreview, closePDF } = usePDFViewer();
   
   // Refs for scroll management
   const messagesEndRef = useRef(null);
@@ -196,23 +199,30 @@ Please describe the criminal case or situation you'd like me to analyze.`;
   const parseAIResponse = (content) => {
     if (!content) return { condensed: content, full: content };
 
+    // Strip "Updated Analysis:" prefix from the beginning of content for condensed version
+    let condensedContent = content;
+    const updatedAnalysisPattern = /^\*\*Updated Analysis\*\*[:\s]*/i;
+    if (updatedAnalysisPattern.test(condensedContent)) {
+      condensedContent = condensedContent.replace(updatedAnalysisPattern, '');
+    }
+
     // Check if this is a final determination by looking for completion indicators
-    const isFinalDetermination = content.includes('FINAL LEGAL DETERMINATION') || 
-                                 content.includes('Case Conclusion') || 
-                                 content.includes('Final Recommendations');
+    const isFinalDetermination = condensedContent.includes('FINAL LEGAL DETERMINATION') || 
+                                 condensedContent.includes('Case Conclusion') || 
+                                 condensedContent.includes('Final Recommendations');
 
     if (isFinalDetermination) {
       // For final determinations, show case conclusion and final recommendations
       let condensed = '';
       
       // Extract case conclusion (without the "Case Conclusion:" label)
-      const conclusionMatch = content.match(/\*\*Case Conclusion\*\*[:\s]*(.+?)(?=\n\n\*\*|$)/is);
+      const conclusionMatch = condensedContent.match(/\*\*Case Conclusion\*\*[:\s]*(.+?)(?=\n\n\*\*|$)/is);
       if (conclusionMatch) {
         condensed += conclusionMatch[1].trim() + '\n\n';
       }
       
       // Extract final recommendations
-      const recommendationsMatch = content.match(/\*\*Final Recommendations\*\*[:\s]*(.+?)(?=\n\n\*\*|$)/is);
+      const recommendationsMatch = condensedContent.match(/\*\*Final Recommendations\*\*[:\s]*(.+?)(?=\n\n\*\*|$)/is);
       if (recommendationsMatch) {
         condensed += `**Final Recommendations**:\n${recommendationsMatch[1].trim()}`;
       }
@@ -220,7 +230,7 @@ Please describe the criminal case or situation you'd like me to analyze.`;
       // If we couldn't extract specific parts, look for alternative patterns
       if (!condensed.trim()) {
         // Look for any paragraph that contains "Based on the evidence" or similar
-        const paragraphs = content.split('\n\n');
+        const paragraphs = condensedContent.split('\n\n');
         let conclusionText = '';
         let recommendationsText = '';
         
@@ -244,62 +254,62 @@ Please describe the criminal case or situation you'd like me to analyze.`;
       };
       
       return {
-        condensed: makeArticlesBold(condensed.trim()) || content,
-        full: content
-      };
-    } else {
-      // For non-final analyses, use the original logic
-      // Extract question from the content
-      const questionMatch = content.match(/\*\*Question[:\s]*\*\*[:\s]*(.+?)(?=\n\n|\n\*\*|$)/is);
-      const question = questionMatch ? questionMatch[1]?.trim() : '';
-      
-      // Create a simple summary from the content
-      // Look for the main case description/summary, usually in the first substantial paragraph
-      const paragraphs = content.split('\n\n').filter(p => p.trim() && !p.startsWith('**'));
-      let summary = '';
-      
-      // Find the first substantial paragraph that describes the case
-      for (const paragraph of paragraphs) {
-        const cleanParagraph = paragraph.trim();
-        if (cleanParagraph.length > 100 && !cleanParagraph.includes('**')) {
-          summary = cleanParagraph;
-          break;
-        }
-      }
-      
-      // If no good summary found, extract from initial assessment section
-      if (!summary) {
-        const initialAssessmentMatch = content.match(/\*\*Initial Assessment[:\s]*\*\*[:\s]*(.+?)(?=\n\n\*\*|$)/is);
-        if (initialAssessmentMatch) {
-          const assessmentContent = initialAssessmentMatch[1]?.trim();
-          // Take first sentence or first 200 characters
-          const sentences = assessmentContent.split(/[.!?]+/);
-          summary = sentences[0]?.trim();
-          if (summary && summary.length < 100 && sentences[1]) {
-            summary += '. ' + sentences[1]?.trim();
-          }
-        }
-      }
-      
-      // Fallback to first meaningful paragraph
-      if (!summary) {
-        summary = content.split('\n\n')[0]?.replace(/\*\*/g, '').trim() || '';
-      }
-      
-      // Create condensed version with just summary and question
-      let condensed = '';
-      if (summary) {
-        condensed = summary;
-      }
-      if (question) {
-        condensed += (condensed ? '\n\n' : '') + question;
-      }
-      
-      return {
-        condensed: condensed.trim() || content,
-        full: content
+        condensed: makeArticlesBold(condensed.trim()) || condensedContent,
+        full: content // Keep original content with "Updated Analysis:" prefix for full analysis
       };
     }
+    
+    // For non-final analyses, use the original logic with cleaned content
+    // Extract question from the cleaned content
+    const questionMatch = condensedContent.match(/\*\*Question[:\s]*\*\*[:\s]*(.+?)(?=\n\n|\n\*\*|$)/is);
+    const question = questionMatch ? questionMatch[1]?.trim() : '';
+    
+    // Create a simple summary from the cleaned content
+    // Look for the main case description/summary, usually in the first substantial paragraph
+    const paragraphs = condensedContent.split('\n\n').filter(p => p.trim() && !p.startsWith('**'));
+    let summary = '';
+    
+    // Find the first substantial paragraph that describes the case
+    for (const paragraph of paragraphs) {
+      const cleanParagraph = paragraph.trim();
+      if (cleanParagraph.length > 100 && !cleanParagraph.includes('**')) {
+        summary = cleanParagraph;
+        break;
+      }
+    }
+    
+    // If no good summary found, extract from initial assessment section
+    if (!summary) {
+      const initialAssessmentMatch = condensedContent.match(/\*\*Initial Assessment[:\s]*\*\*[:\s]*(.+?)(?=\n\n\*\*|$)/is);
+      if (initialAssessmentMatch) {
+        const assessmentContent = initialAssessmentMatch[1]?.trim();
+        // Take first sentence or first 200 characters
+        const sentences = assessmentContent.split(/[.!?]+/);
+        summary = sentences[0]?.trim();
+        if (summary && summary.length < 100 && sentences[1]) {
+          summary += '. ' + sentences[1]?.trim();
+        }
+      }
+    }
+    
+    // Fallback to first meaningful paragraph
+    if (!summary) {
+      summary = condensedContent.split('\n\n')[0]?.replace(/\*\*/g, '').trim() || '';
+    }
+    
+    // Create condensed version with just summary and question
+    let condensed = '';
+    if (summary) {
+      condensed = summary;
+    }
+    if (question) {
+      condensed += (condensed ? '\n\n' : '') + question;
+    }
+    
+    return {
+      condensed: condensed.trim() || condensedContent,
+      full: content // Keep original content with "Updated Analysis:" prefix for full analysis
+    };
   };
 
   /**
@@ -685,6 +695,15 @@ Please describe the criminal case or situation you'd like me to analyze.`;
   };
 
   /**
+   * Navigate to Document Management page to view all enabled PDFs
+   */
+  const openDocumentManagement = () => {
+    // Trigger a custom event to switch to Document Management tab
+    // This will be caught by the parent component that manages tabs
+    window.dispatchEvent(new CustomEvent('switchToDocumentManagement'));
+  };
+
+  /**
    * Toggle between simple chat and interactive analysis modes
    * Clears conversation history when switching modes
    */
@@ -800,21 +819,28 @@ Please describe the criminal case or situation you'd like me to analyze.`;
           {isMounted && (
             <div className="flex items-center space-x-2 flex-shrink-0">
               {enabledPDFsCount > 0 ? (
-                <div className="flex items-center space-x-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition-colors">
+                <button
+                  onClick={openDocumentManagement}
+                  className="flex items-center space-x-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                  title={`Click to view ${enabledPDFsCount === 1 ? 'the enabled PDF' : `all ${enabledPDFsCount} enabled PDFs`} in Document Management`}
+                >
                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm1 0v12h12V4H4z" clipRule="evenodd" />
                     <path fillRule="evenodd" d="M6 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zM6 10a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zM7 13a1 1 0 100 2h2a1 1 0 100-2H7z" clipRule="evenodd" />
                   </svg>
                   <span>{enabledPDFsCount} PDF{enabledPDFsCount !== 1 ? 's' : ''} Active</span>
-                </div>
+                </button>
               ) : (
-                <div className="flex items-center space-x-1 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer" 
-                     title="Go to Document Management to enable PDFs">
+                <button
+                  onClick={openDocumentManagement}
+                  className="flex items-center space-x-1 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer" 
+                  title="Click to go to Document Management to enable PDFs"
+                >
                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
                   <span>No PDFs Enabled</span>
-                </div>
+                </button>
               )}
             </div>
           )}
@@ -1017,7 +1043,7 @@ Please describe the criminal case or situation you'd like me to analyze.`;
         searchTerm={pdfViewer.searchTerm}
         initialPage={pdfViewer.initialPage}
         isOpen={pdfViewer.isOpen}
-        onClose={() => setPdfViewer({ isOpen: false, pdfUrl: '', searchTerm: '', initialPage: 1 })}
+        onClose={closePDF}
       />
 
       {/* Full Analysis Modal */}
@@ -1185,12 +1211,7 @@ Please describe the criminal case or situation you'd like me to analyze.`;
                 {articlePreview.pdfUrl && (
                   <button
                     onClick={() => {
-                      setPdfViewer({
-                        isOpen: true,
-                        pdfUrl: articlePreview.pdfUrl,
-                        searchTerm: articlePreview.searchTerm,
-                        initialPage: articlePreview.initialPage
-                      });
+                      openFromArticlePreview(articlePreview);
                       setArticlePreview(null);
                     }}
                     className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors flex items-center justify-center space-x-2"
