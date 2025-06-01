@@ -598,7 +598,7 @@ export default function PDFManager() {
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                     Are you sure you want to delete{' '}
                     <span className="font-medium text-gray-900 dark:text-white">
-                      "{deleteConfirmation.pdf?.fileName}"
+                      &quot;{deleteConfirmation.pdf?.fileName}&quot;
                     </span>
                     ? This action cannot be undone.
                   </p>
