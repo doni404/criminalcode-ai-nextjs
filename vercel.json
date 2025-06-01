@@ -4,8 +4,14 @@
   "outputDirectory": ".next",
   "installCommand": "npm install",
   "functions": {
-    "src/app/api/**/*.js": {
+    "src/app/api/upload/route.js": {
       "maxDuration": 60
+    },
+    "src/app/api/chat/route.js": {
+      "maxDuration": 30
+    },
+    "src/app/api/legal/analyze/route.js": {
+      "maxDuration": 30
     }
   },
   "headers": [
@@ -27,10 +33,6 @@
       ]
     }
   ],
-  "rewrites": [
-    {
-      "source": "/uploads/(.*)",
-      "destination": "/api/uploads/$1"
-    }
-  ]
+  "rewrites": [],
+  "public": true
 } 
