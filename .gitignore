@@ -27,6 +27,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# vercel
+.vercel
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
@@ -51,3 +54,9 @@ Thumbs.db
 # Test files
 test-*.js
 test-*.mjs
+.next
+
+# Performance optimization
+.next/
+node_modules/
+*.log

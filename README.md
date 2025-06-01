@@ -15,26 +15,19 @@
 
 An intelligent Next.js application that provides comprehensive criminal law analysis using AI and vector databases. Features interactive legal consultation, PDF document processing, and advanced case analysis frameworks.
 
-![Criminal Code AI Banner](./docs/images/banner.png)
-*Replace with actual screenshot*
-
 ## 📸 Screenshots
 
-### Main Interface - Interactive Analysis Mode
+### Interactive Analysis Mode
 ![Interactive Analysis Mode](./docs/images/interactive-mode.png)
-*Interactive questioning system for precise legal analysis*
+*Progressive questioning system for systematic legal analysis*
 
 ### Simple Chat Mode
 ![Simple Chat Mode](./docs/images/simple-chat.png)
-*Basic legal consultation with AI guidance*
+*Basic legal consultation with AI-powered responses*
 
 ### Document Management
 ![Document Management](./docs/images/document-management.png)
-*PDF upload and processing interface*
-
-### Article Viewer
-![Article Viewer](./docs/images/article-viewer.png)
-*Detailed legal article viewer with PDF search*
+*PDF upload, processing, and management interface*
 
 ---
 
@@ -62,27 +55,30 @@ Create a `.env.local` file in the root directory:
 # OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key_here
 
-# Qdrant Vector Database Configuration
+# Qdrant Vector Database Configuration (criminal-code-ai-v2)
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
-# QDRANT_API_KEY=your_qdrant_api_key_if_using_cloud (optional for cloud)
+# Remove QDRANT_URL and QDRANT_API_KEY for local setup
+
+# Vercel Blob Storage Configuration (for production)
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_token_here
+
+# Next.js Configuration
+NEXTAUTH_SECRET=your_nextauth_secret_here
+NEXTAUTH_URL=http://localhost:3000
 ```
 
-### 4. Start Qdrant Database
-**Option A: Using Docker (Recommended)**
+### 4. Vector Database Setup
+**Qdrant Cloud (Current Setup)**
+✅ **Already configured!** This project uses Qdrant Cloud for production
+- Collections are automatically created on first use
+- No local setup required
+- Configure your credentials in `.env.local`
+
+**Local Development Alternative (Optional)**
 ```bash
+# If you prefer local development
 docker run -p 6333:6333 qdrant/qdrant
-```
-
-**Option B: Using Docker Compose**
-```bash
-# Create docker-compose.yml with Qdrant service
-docker-compose up -d qdrant
-```
-
-**Option C: Local Installation**
-```bash
-# Follow Qdrant installation guide: https://qdrant.tech/documentation/quick-start/
 ```
 
 ### 5. Run the Development Server
@@ -280,8 +276,8 @@ QDRANT_HOST=localhost
 QDRANT_PORT=6333
 
 # Optional: For Qdrant Cloud
-QDRANT_API_KEY=your-cloud-api-key
-QDRANT_URL=your-cloud-instance-url
+# QDRANT_API_KEY=your-cloud-api-key
+# QDRANT_URL=your-cloud-instance-url
 
 # Optional: Upload limits
 MAX_FILE_SIZE=52428800  # 50MB default

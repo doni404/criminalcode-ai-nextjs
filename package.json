@@ -11,13 +11,16 @@
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.14.1",
+    "@vercel/blob": "^1.1.1",
     "lucide-react": "^0.511.0",
     "multer": "^2.0.0",
     "next": "15.3.3",
     "openai": "^5.0.1",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.8.69",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-pdf": "^9.2.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
