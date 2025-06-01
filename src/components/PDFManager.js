@@ -298,17 +298,17 @@ export default function PDFManager() {
   const enabledCount = uploadedPDFs.filter(pdf => pdf.isEnabled).length;
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
+    <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
       {/* Header */}
-      <div className="bg-slate-900 dark:bg-slate-700 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
+      <div className="bg-slate-900 dark:bg-slate-700 px-4 sm:px-6 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold text-white">Document Management</h2>
             <p className="text-slate-300 text-sm">
               Upload and manage criminal code PDFs for vector database
             </p>
           </div>
-          <div className="text-right">
+          <div className="text-right sm:text-right flex-shrink-0">
             <div className="text-white text-sm">
               {uploadedPDFs.length} PDF{uploadedPDFs.length !== 1 ? 's' : ''} uploaded
             </div>
@@ -320,7 +320,7 @@ export default function PDFManager() {
       </div>
 
       {/* Upload Section */}
-      <div className="p-6 border-b border-gray-200 dark:border-slate-600">
+      <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-slate-600">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">Upload New PDF</h3>
         </div>
@@ -358,21 +358,21 @@ export default function PDFManager() {
             <div className="space-y-3">
               {/* Progress Header */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 min-w-0 flex-1">
                   {uploadProgress.status === 'uploading' && (
-                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
                   )}
                   {uploadProgress.status === 'success' && (
-                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
                   )}
                   {uploadProgress.status === 'error' && (
-                    <XCircle className="w-4 h-4 text-red-600" />
+                    <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
                   )}
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
                     {uploadProgress.fileName}
                   </span>
                 </div>
-                <span className="text-sm text-gray-600 dark:text-gray-400">
+                <span className="text-sm text-gray-600 dark:text-gray-400 flex-shrink-0 ml-2">
                   {uploadProgress.percentage}%
                 </span>
               </div>
@@ -392,7 +392,7 @@ export default function PDFManager() {
               </div>
 
               {/* Progress Message */}
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs">
                 <span className="text-gray-600 dark:text-gray-400">
                   {uploadProgress.message}
                 </span>
@@ -402,7 +402,7 @@ export default function PDFManager() {
               </div>
 
               {/* Stage Indicators */}
-              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500">
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500 overflow-x-auto">
                 {[
                   { stage: 'preparing', label: 'Prepare', threshold: 5 },
                   { stage: 'uploading', label: 'Upload', threshold: 15 },
@@ -417,7 +417,7 @@ export default function PDFManager() {
                   const isActive = isCurrentStage || isCompleted;
                   
                   return (
-                    <div key={stageInfo.stage} className="flex flex-col items-center space-y-1">
+                    <div key={stageInfo.stage} className="flex flex-col items-center space-y-1 min-w-0">
                       <div 
                         className={`w-2 h-2 rounded-full transition-all duration-300 ${
                           isCurrentStage
@@ -427,7 +427,7 @@ export default function PDFManager() {
                               : 'bg-gray-300 dark:bg-gray-600'
                         }`}
                       ></div>
-                      <span className={`text-xs transition-colors duration-300 ${
+                      <span className={`text-xs transition-colors duration-300 whitespace-nowrap ${
                         isActive ? 'text-gray-700 dark:text-gray-300 font-medium' : 'text-gray-500 dark:text-gray-500'
                       }`}>
                         {stageInfo.label}
@@ -449,8 +449,8 @@ export default function PDFManager() {
       </div>
 
       {/* PDF List */}
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">Uploaded Documents</h3>
           {uploadedPDFs.length > 0 && (
             <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -472,16 +472,16 @@ export default function PDFManager() {
             {uploadedPDFs.map((pdf) => (
               <div
                 key={pdf.id}
-                className={`p-4 rounded-lg border transition-colors ${
+                className={`p-3 sm:p-4 rounded-lg border transition-colors ${
                   pdf.isEnabled
                     ? 'border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800'
                     : 'border-gray-200 bg-gray-50 dark:bg-slate-700 dark:border-slate-600'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-start sm:items-center space-x-3 min-w-0 flex-1">
                     {/* Enable/Disable Toggle */}
-                    <label className="flex items-center cursor-pointer">
+                    <label className="flex items-center cursor-pointer flex-shrink-0 mt-1 sm:mt-0">
                       <input
                         type="checkbox"
                         checked={pdf.isEnabled}
@@ -498,13 +498,15 @@ export default function PDFManager() {
                     </label>
 
                     {/* PDF Info */}
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <FileText className="w-4 h-4 text-blue-600" />
-                        <h4 className="font-medium text-gray-900 dark:text-white">
-                          {pdf.fileName}
-                        </h4>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                          <h4 className="font-medium text-gray-900 dark:text-white truncate">
+                            {pdf.fileName}
+                          </h4>
+                        </div>
+                        <span className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${
                           pdf.isEnabled
                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                             : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
@@ -522,10 +524,10 @@ export default function PDFManager() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 flex-shrink-0 self-end sm:self-center">
                     <button
                       onClick={() => openFromUploadedPDF(pdf)}
-                      className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-md transition-colors"
+                      className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-md transition-colors touch-manipulation"
                       title="View PDF"
                     >
                       <Eye className="w-4 h-4" />
@@ -537,7 +539,7 @@ export default function PDFManager() {
                         link.download = pdf.fileName;
                         link.click();
                       }}
-                      className="p-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                      className="p-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors touch-manipulation"
                       title="Download PDF"
                     >
                       <Download className="w-4 h-4" />
@@ -546,7 +548,7 @@ export default function PDFManager() {
                       onClick={() => {
                         setDeleteConfirmation({ pdf: pdf, show: true });
                       }}
-                      className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                      className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-md transition-colors touch-manipulation"
                       title="Delete PDF"
                     >
                       <Trash2 className="w-4 h-4" />
