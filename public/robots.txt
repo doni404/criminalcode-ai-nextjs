@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://criminalcode-ai.vercel.app/sitemap.xml
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
+
+# Disallow sensitive paths (if any)
+Disallow: /api/
+Disallow: /_next/
+Disallow: /uploads/
+
+# Allow specific important pages
+Allow: /
+Allow: /about
+Allow: /privacy
+Allow: /terms 

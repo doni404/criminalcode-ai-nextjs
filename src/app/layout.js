@@ -7,16 +7,79 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Criminal Code AI Assistant",
-  description: "AI-powered criminal case analysis and legal code identification system. Get expert analysis on applicable laws, criminal code chapters, and potential penalties.",
-  keywords: "criminal law, legal analysis, AI assistant, criminal code, legal consultation",
+  title: "Criminal Code AI Assistant | Indonesian Penal Code Analysis",
+  description: "Advanced AI-powered criminal law analysis assistant for Indonesian Penal Code. Get expert legal analysis, criminal code article identification, penalty calculations, and comprehensive case evaluation with interactive questioning system.",
+  keywords: [
+    "Indonesian criminal law",
+    "penal code analysis", 
+    "criminal code AI",
+    "legal analysis assistant",
+    "Indonesian legal system",
+    "criminal case evaluation",
+    "legal consultation AI",
+    "criminal code articles",
+    "penalty calculation",
+    "legal element analysis",
+    "criminal law expert",
+    "Indonesian KUHP"
+  ].join(", "),
   authors: [{ name: "Criminal Code AI Team" }],
+  creator: "Criminal Code AI Team",
+  publisher: "Criminal Code AI",
+  category: "Legal Technology",
+  
+  // Open Graph meta tags
+  openGraph: {
+    title: "Criminal Code AI Assistant | Indonesian Penal Code Analysis",
+    description: "Advanced AI-powered criminal law analysis for Indonesian Penal Code. Expert legal analysis, article identification, and comprehensive case evaluation.",
+    type: "website",
+    locale: "en_US",
+    siteName: "Criminal Code AI Assistant",
+  },
+  
+  // Twitter Card meta tags
+  twitter: {
+    card: "summary_large_image",
+    title: "Criminal Code AI Assistant | Indonesian Penal Code Analysis",
+    description: "Advanced AI-powered criminal law analysis for Indonesian Penal Code. Expert legal analysis and case evaluation.",
+    creator: "@CriminalCodeAI",
+  },
+  
+  // Additional meta tags
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  
+  // Favicon and icons
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' }
+    ],
+    apple: '/favicon.svg',
+    shortcut: '/favicon.svg',
+  },
+  
+  // App manifest
+  manifest: '/manifest.json',
 };
 
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#1e293b',
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#1e40af' },
+    { media: '(prefers-color-scheme: dark)', color: '#1e293b' }
+  ],
 };
 
 export default function RootLayout({ children }) {
@@ -24,7 +87,39 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
-        <link rel="icon" href="/favicon.ico" />
+        <meta name="application-name" content="Criminal Code AI" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Criminal Code AI" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-TileColor" content="#1e40af" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        
+        {/* Structured Data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebApplication",
+              "name": "Criminal Code AI Assistant",
+              "description": "Advanced AI-powered criminal law analysis assistant for Indonesian Penal Code",
+              "url": "https://criminalcode-ai.vercel.app",
+              "applicationCategory": "LegalApplication",
+              "operatingSystem": "Web Browser",
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD"
+              },
+              "creator": {
+                "@type": "Organization",
+                "name": "Criminal Code AI Team"
+              }
+            })
+          }}
+        />
       </head>
       <body
         className={`${inter.variable} font-sans antialiased min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800`}
@@ -45,7 +140,7 @@ export default function RootLayout({ children }) {
                     <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">
                       Criminal Code AI
                     </h1>
-                    <p className="text-sm text-slate-600 dark:text-slate-300">Legal Analysis Assistant</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">Indonesian Penal Code Analysis</p>
                   </div>
                 </div>
                 <div className="text-sm text-slate-500 dark:text-slate-400" suppressHydrationWarning>
@@ -63,10 +158,10 @@ export default function RootLayout({ children }) {
             <div className="container mx-auto px-4 py-6" suppressHydrationWarning>
               <div className="text-center text-sm text-slate-600 dark:text-slate-400" suppressHydrationWarning>
                 <p className="mb-2">
-                  <strong>Disclaimer:</strong> This AI assistant provides general information only and should not be considered legal advice.
+                  <strong>Legal Disclaimer:</strong> This AI assistant provides general information and analysis based on Indonesian Penal Code for educational purposes only.
                 </p>
                 <p>
-                  Always consult with a qualified attorney for professional legal guidance regarding your specific situation.
+                  This is not official legal advice. Always consult with a qualified Indonesian attorney for professional legal guidance regarding your specific situation.
                 </p>
               </div>
             </div>

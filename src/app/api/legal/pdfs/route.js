@@ -133,6 +133,105 @@ export async function POST(request) {
           note: 'File system storage not available in serverless deployment'
         });
 
+      case 'clear-vector-db':
+        try {
+          const qdrantModule = await import('../../../../lib/vector/qdrant.js');
+          const qdrantService = qdrantModule.default;
+          
+          console.log('🧹 API: Starting vector database clear operation...');
+          const result = await qdrantService.clearPDFData();
+          
+          return NextResponse.json({
+            success: true,
+            message: result.message,
+            deletedCount: result.deletedCount,
+            note: 'Vector database PDF data cleared'
+          });
+        } catch (error) {
+          console.error('❌ API: Error clearing vector database:', error);
+          return NextResponse.json({
+            success: false,
+            message: 'Failed to clear vector database',
+            error: error.message
+          }, { status: 500 });
+        }
+
+      case 'clear-all-vector-db':
+        try {
+          const qdrantModule = await import('../../../../lib/vector/qdrant.js');
+          const qdrantService = qdrantModule.default;
+          
+          console.log('🧹 API: Starting complete vector database clear...');
+          const result = await qdrantService.clearAllData();
+          
+          return NextResponse.json({
+            success: true,
+            message: result.message,
+            collectionsCleared: result.collectionsCleared,
+            note: 'Complete vector database cleared and reinitialized'
+          });
+        } catch (error) {
+          console.error('❌ API: Error clearing all vector database:', error);
+          return NextResponse.json({
+            success: false,
+            message: 'Failed to clear vector database completely',
+            error: error.message
+          }, { status: 500 });
+        }
+
+      case 'debug-vector-db':
+        try {
+          const qdrantModule = await import('../../../../lib/vector/qdrant.js');
+          const qdrantService = qdrantModule.default;
+          
+          console.log('🔍 API: Starting vector database debug inspection...');
+          
+          // Get all points with detailed info
+          const scrollResult = await qdrantService.client.scroll(qdrantService.collections.CRIMINAL_CODE_ARTICLES, {
+            with_payload: true,
+            limit: 200
+          });
+          
+          const allPoints = scrollResult.points;
+          const pdfMetadataPoints = allPoints.filter(p => p.payload?.type === 'pdf_metadata');
+          const articlePoints = allPoints.filter(p => p.payload?.type === 'criminal_code_article');
+          
+          console.log(`🔍 DEBUG: Total points: ${allPoints.length}`);
+          console.log(`🔍 DEBUG: PDF metadata: ${pdfMetadataPoints.length}`);
+          console.log(`🔍 DEBUG: Articles: ${articlePoints.length}`);
+          
+          const debugInfo = {
+            totalPoints: allPoints.length,
+            pdfMetadataCount: pdfMetadataPoints.length,
+            articleCount: articlePoints.length,
+            pdfMetadata: pdfMetadataPoints.map(p => ({
+              id: p.id,
+              fileName: p.payload.file_name,
+              originalFileName: p.payload.original_file_name,
+              createdAt: p.payload.created_at
+            })),
+            pointTypes: [...new Set(allPoints.map(p => p.payload?.type))],
+            recentPoints: allPoints.slice(0, 5).map(p => ({
+              id: p.id,
+              type: p.payload?.type,
+              fileName: p.payload?.file_name || p.payload?.article_number || 'unknown'
+            }))
+          };
+          
+          return NextResponse.json({
+            success: true,
+            message: 'Vector database inspection complete',
+            debug: debugInfo
+          });
+        } catch (error) {
+          console.error('❌ API: Error debugging vector database:', error);
+          return NextResponse.json({
+            success: false,
+            message: 'Failed to debug vector database',
+            error: error.message
+          }, { status: 500 });
+        }
+
       default:
         return NextResponse.json(
           { error: 'Invalid action' },
@@ -176,11 +275,24 @@ export async function DELETE(request) {
       const qdrantModule = await import('../../../../lib/vector/qdrant.js');
       const qdrantService = qdrantModule.default;
       
-      // Remove PDF metadata from vector database
-      await qdrantService.deletePDFMetadata(fileName);
-      console.log(`🗑️ Removed PDF metadata from vector database: ${fileName}`);
+      // Debug logging to check what methods are available
+      console.log(`🔍 DEBUG: qdrantService type: ${typeof qdrantService}`);
+      console.log(`🔍 DEBUG: Available methods: ${Object.getOwnPropertyNames(Object.getPrototypeOf(qdrantService))}`);
+      console.log(`🔍 DEBUG: deletePDFMetadata exists: ${typeof qdrantService.deletePDFMetadata}`);
+      
+      // Check if the method exists before calling it
+      if (typeof qdrantService.deletePDFMetadata === 'function') {
+        // Remove PDF metadata from vector database
+        const deleteResult = await qdrantService.deletePDFMetadata(fileName);
+        console.log(`✅ Removed PDF metadata from vector database: ${fileName}`, deleteResult);
+      } else {
+        console.warn(`⚠️ deletePDFMetadata method not found on qdrantService`);
+        console.log(`🔍 Available methods:`, Object.getOwnPropertyNames(qdrantService));
+        console.log(`🔍 Prototype methods:`, Object.getOwnPropertyNames(Object.getPrototypeOf(qdrantService)));
+      }
     } catch (vectorError) {
       console.warn('⚠️ Could not remove from vector database:', vectorError.message);
+      console.error('⚠️ Vector database error details:', vectorError);
     }
 
     if (deleteResult.success) {
