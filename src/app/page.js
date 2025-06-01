@@ -9,8 +9,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('chat');
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="text-center mb-8">
+    <div className="container mx-auto px-4 py-8" suppressHydrationWarning>
+      <div className="text-center mb-8" suppressHydrationWarning>
         <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100 mb-4">
           Criminal Code AI Assistant
         </h1>
@@ -20,8 +20,8 @@ export default function Home() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex justify-center mb-8">
-        <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-1 flex space-x-1">
+      <div className="flex justify-center mb-8" suppressHydrationWarning>
+        <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-1 flex space-x-1" suppressHydrationWarning>
           <button
             onClick={() => setActiveTab('chat')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
@@ -48,7 +48,7 @@ export default function Home() {
       </div>
 
       {/* Tab Content */}
-      <div className="min-h-[600px]">
+      <div className="min-h-[600px]" suppressHydrationWarning>
         {activeTab === 'chat' && <ChatInterface />}
         {activeTab === 'documents' && <PDFManager />}
       </div>

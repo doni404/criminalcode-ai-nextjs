@@ -24,3 +24,124 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Prevent browser extension attributes from affecting layout */
+[bis_skin_checked] {
+  /* This helps ensure browser extension attributes don't affect styling */
+}
+
+/* Improve hydration stability */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure consistent rendering */
+html {
+  scroll-behavior: smooth;
+}
+
+@layer utilities {
+  .suppress-hydration {
+    /* Helper class for elements that need hydration suppression */
+  }
+}
+
+/* React-PDF styles */
+.react-pdf__Page {
+  margin: 0 auto;
+}
+
+.react-pdf__Page__canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.react-pdf__Page__textContent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.25;
+  line-height: 1;
+}
+
+.react-pdf__Page__textContent span {
+  position: absolute;
+  white-space: pre;
+  color: transparent;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.react-pdf__Page__textContent ::selection {
+  background: rgba(0, 0, 255, 0.3);
+}
+
+/* Search highlighting */
+.react-pdf__Page__textContent .highlight {
+  background: rgba(255, 255, 0, 0.4);
+  color: transparent;
+}
+
+.react-pdf__Page__annotations {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: auto;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .react-pdf__Page {
+    filter: invert(1) hue-rotate(180deg);
+  }
+  
+  .react-pdf__Page img {
+    filter: invert(1) hue-rotate(180deg);
+  }
+}
+
+/* Fix browser extension compatibility */
+[bis_skin_checked] {
+  outline: none !important;
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Dark mode scrollbar */
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-track {
+    background: #374151;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #6b7280;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+}
