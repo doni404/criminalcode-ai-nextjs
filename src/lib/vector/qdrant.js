@@ -187,6 +187,7 @@ class QdrantService {
   async storePDFMetadata(pdfMetadata) {
     try {
       console.log('📋 PDF metadata storage STARTED');
+      console.log('📋 Metadata to store:', JSON.stringify(pdfMetadata, null, 2));
       
       // Use a simple embedding for PDF metadata (just zeros since we don't need semantic search)
       const dummyVector = new Array(1536).fill(0);
@@ -208,6 +209,7 @@ class QdrantService {
         }
       };
 
+      console.log('📋 Point to upsert:', JSON.stringify(point, null, 2));
       console.log('📋 About to call upsert...');
       
       const result = await this.client.upsert(this.collections.CRIMINAL_CODE_ARTICLES, {
@@ -218,14 +220,46 @@ class QdrantService {
       console.log('📋 Upsert result:', result);
       console.log('📋 Upsert completed successfully');
       
-      // Add small delay for Qdrant Cloud consistency
+      // Add longer delay for Qdrant Cloud consistency
       console.log('📋 Waiting for consistency...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Increased to 2 seconds
       console.log('📋 Consistency wait complete');
+      
+      // Verify the data was stored by immediately querying for it
+      console.log('📋 VERIFICATION: Checking if metadata was actually stored...');
+      try {
+        const verifyResult = await this.client.scroll(this.collections.CRIMINAL_CODE_ARTICLES, {
+          with_payload: true,
+          limit: 100,
+          filter: {
+            must: [
+              {
+                key: 'type',
+                match: { value: 'pdf_metadata' }
+              },
+              {
+                key: 'file_name',
+                match: { value: pdfMetadata.fileName }
+              }
+            ]
+          }
+        });
+        
+        console.log(`📋 VERIFICATION: Found ${verifyResult.points.length} matching metadata entries`);
+        if (verifyResult.points.length > 0) {
+          console.log('📋 VERIFICATION: Metadata successfully stored and retrievable');
+          console.log('📋 VERIFICATION: Stored data:', JSON.stringify(verifyResult.points[0].payload, null, 2));
+        } else {
+          console.error('📋 VERIFICATION FAILED: Metadata not found after storage!');
+        }
+      } catch (verifyError) {
+        console.error('📋 VERIFICATION ERROR:', verifyError.message);
+      }
       
       console.log(`✅ Stored PDF metadata for: ${pdfMetadata.fileName}`);
     } catch (error) {
       console.error('❌ PDF metadata storage ERROR:', error.message);
+      console.error('❌ Error details:', error);
       throw error;
     }
   }
@@ -235,10 +269,10 @@ class QdrantService {
     try {
       console.log(`🔍 Searching for PDF metadata in collection: ${this.collections.CRIMINAL_CODE_ARTICLES}`);
       
-      // Temporarily get ALL points to see what's actually there
+      // Increase limit to ensure we get all points
       const searchResult = await this.client.scroll(this.collections.CRIMINAL_CODE_ARTICLES, {
         with_payload: true,
-        limit: 50  // Increased to see all points including PDF metadata
+        limit: 200  // Increased significantly to ensure we get all points
       });
 
       console.log(`🔍 Raw search result: ${searchResult.points.length} total points found`);
@@ -247,12 +281,21 @@ class QdrantService {
         const pointTypes = searchResult.points.map(p => p.payload?.type).slice(0, 5);
         console.log('🔍 Point types found:', pointTypes);
         
-        // Look for PDF metadata specifically
+        // Look for PDF metadata specifically with detailed logging
         const pdfMetadataPoints = searchResult.points.filter(p => p.payload?.type === 'pdf_metadata');
         console.log(`🔍 Found ${pdfMetadataPoints.length} PDF metadata points`);
         
+        // Debug: Show ALL PDF metadata points, not just the first one
         if (pdfMetadataPoints.length > 0) {
-          console.log('🔍 First PDF metadata:', JSON.stringify(pdfMetadataPoints[0].payload, null, 2));
+          console.log('🔍 All PDF metadata points:');
+          pdfMetadataPoints.forEach((point, index) => {
+            console.log(`  ${index + 1}. ID: ${point.id}, File: ${point.payload.file_name}, Original: ${point.payload.original_file_name}, Created: ${point.payload.created_at}`);
+          });
+        } else {
+          console.log('🔍 No PDF metadata points found! Checking first 10 points:');
+          searchResult.points.slice(0, 10).forEach((point, index) => {
+            console.log(`  ${index + 1}. ID: ${point.id}, Type: ${point.payload?.type}, Data: ${JSON.stringify(point.payload).substring(0, 100)}...`);
+          });
         }
       }
 
@@ -260,6 +303,8 @@ class QdrantService {
       const pdfMetadataPoints = searchResult.points.filter(point => 
         point.payload?.type === 'pdf_metadata'
       );
+
+      console.log(`🔍 FINAL: Returning ${pdfMetadataPoints.length} PDF metadata entries`);
 
       return pdfMetadataPoints.map(point => ({
         id: point.payload.file_name.replace(/\.[^/.]+$/, ""), // Use filename without extension as ID
@@ -278,6 +323,82 @@ class QdrantService {
         console.log(`📋 Collection ${this.collections.CRIMINAL_CODE_ARTICLES} not found or inaccessible, returning empty list`);
         return [];
       }
+      throw error;
+    }
+  }
+
+  // Delete PDF metadata and related articles
+  async deletePDFMetadata(fileName) {
+    try {
+      console.log(`🗑️ Deleting PDF metadata for file: ${fileName}`);
+      
+      // Get all points in the collection to find matching ones
+      const scrollResult = await this.client.scroll(this.collections.CRIMINAL_CODE_ARTICLES, {
+        with_payload: true,
+        limit: 1000  // Get more points to ensure we find all related data
+      });
+
+      console.log(`🔍 DELETE SCAN: Found ${scrollResult.points.length} total points to scan`);
+
+      // Find points to delete (PDF metadata and articles from this file)
+      const pointsToDelete = [];
+      const metadataToDelete = [];
+      const articlesToDelete = [];
+      
+      scrollResult.points.forEach(point => {
+        const payload = point.payload;
+        
+        // Delete PDF metadata points matching the filename
+        if (payload?.type === 'pdf_metadata' && 
+            (payload.file_name === fileName || payload.original_file_name === fileName)) {
+          pointsToDelete.push(point.id);
+          metadataToDelete.push(point);
+          console.log(`🗑️ Found PDF metadata to delete: ${payload.file_name} (ID: ${point.id})`);
+        }
+        
+        // Delete articles that came from this PDF file
+        if (payload?.type === 'criminal_code_article' && 
+            payload.source_file === fileName) {
+          pointsToDelete.push(point.id);
+          articlesToDelete.push(point);
+          console.log(`🗑️ Found article to delete from file: Article ${payload.article_number} (ID: ${point.id})`);
+        }
+      });
+
+      console.log(`🗑️ DELETION SUMMARY: ${metadataToDelete.length} metadata + ${articlesToDelete.length} articles = ${pointsToDelete.length} total points to delete`);
+
+      if (pointsToDelete.length > 0) {
+        // Delete the points
+        const deleteResult = await this.client.delete(this.collections.CRIMINAL_CODE_ARTICLES, {
+          wait: true,
+          points: pointsToDelete
+        });
+        
+        console.log(`🗑️ Qdrant delete operation result:`, deleteResult);
+        console.log(`✅ Deleted ${pointsToDelete.length} points from vector database for file: ${fileName}`);
+        
+        // Wait a bit for Qdrant consistency (especially important for cloud)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`⏱️ Waited for Qdrant consistency after deletion`);
+        
+        return {
+          success: true,
+          deletedCount: pointsToDelete.length,
+          metadataDeleted: metadataToDelete.length,
+          articlesDeleted: articlesToDelete.length,
+          message: `Deleted ${pointsToDelete.length} points from vector database`
+        };
+      } else {
+        console.log(`ℹ️ No vector database entries found for file: ${fileName}`);
+        return {
+          success: true,
+          deletedCount: 0,
+          message: 'No vector database entries found for this file'
+        };
+      }
+      
+    } catch (error) {
+      console.error(`❌ Error deleting PDF metadata for ${fileName}:`, error);
       throw error;
     }
   }
@@ -425,6 +546,111 @@ class QdrantService {
         status: 'unhealthy',
         error: error.message
       };
+    }
+  }
+
+  // Clear all data from vector database (for debugging)
+  async clearAllData() {
+    try {
+      console.log('🧹 Starting complete vector database cleanup...');
+      
+      // Delete all collections
+      const collections = [
+        this.collections.CRIME_NAME_MASTER,
+        this.collections.CASE_LAW_MASTER,
+        this.collections.CRIMINAL_CODE_ARTICLES
+      ];
+
+      for (const collectionName of collections) {
+        try {
+          console.log(`🗑️ Deleting collection: ${collectionName}`);
+          await this.client.deleteCollection(collectionName);
+          console.log(`✅ Deleted collection: ${collectionName}`);
+        } catch (error) {
+          if (error.status === 404) {
+            console.log(`ℹ️ Collection ${collectionName} doesn't exist, skipping`);
+          } else {
+            console.error(`❌ Error deleting collection ${collectionName}:`, error);
+          }
+        }
+      }
+
+      // Recreate collections
+      console.log('🔄 Recreating collections...');
+      await this.initializeCollections();
+      
+      console.log('✅ Vector database completely cleared and reinitialized');
+      return {
+        success: true,
+        message: 'All vector database data cleared successfully',
+        collectionsCleared: collections.length
+      };
+      
+    } catch (error) {
+      console.error('❌ Error clearing vector database:', error);
+      throw error;
+    }
+  }
+
+  // Clear only PDF-related data (alternative to full clear)
+  async clearPDFData() {
+    try {
+      console.log('🧹 Clearing PDF-related data from vector database...');
+      
+      // Get all points in the criminal code articles collection
+      const scrollResult = await this.client.scroll(this.collections.CRIMINAL_CODE_ARTICLES, {
+        with_payload: true,
+        limit: 1000
+      });
+
+      // Find all PDF metadata and article points
+      const pointsToDelete = [];
+      
+      scrollResult.points.forEach(point => {
+        const payload = point.payload;
+        
+        // Delete all PDF metadata
+        if (payload?.type === 'pdf_metadata') {
+          pointsToDelete.push(point.id);
+          console.log(`🗑️ Marking PDF metadata for deletion: ${payload.file_name}`);
+        }
+        
+        // Delete all criminal code articles
+        if (payload?.type === 'criminal_code_article') {
+          pointsToDelete.push(point.id);
+          console.log(`🗑️ Marking article for deletion: Article ${payload.article_number || 'Unknown'}`);
+        }
+      });
+
+      if (pointsToDelete.length > 0) {
+        console.log(`🗑️ Deleting ${pointsToDelete.length} PDF-related points...`);
+        
+        await this.client.delete(this.collections.CRIMINAL_CODE_ARTICLES, {
+          wait: true,
+          points: pointsToDelete
+        });
+        
+        // Wait for consistency
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        console.log(`✅ Cleared ${pointsToDelete.length} PDF-related points from vector database`);
+        return {
+          success: true,
+          message: `Cleared ${pointsToDelete.length} PDF-related points`,
+          deletedCount: pointsToDelete.length
+        };
+      } else {
+        console.log('ℹ️ No PDF-related data found to clear');
+        return {
+          success: true,
+          message: 'No PDF-related data found',
+          deletedCount: 0
+        };
+      }
+      
+    } catch (error) {
+      console.error('❌ Error clearing PDF data:', error);
+      throw error;
     }
   }
 }
